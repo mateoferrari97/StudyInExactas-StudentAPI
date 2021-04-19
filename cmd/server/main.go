@@ -2,12 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"net/http"
-
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
+	"github.com/mateoferrari97/my-path/internal/server"
 
 	"github.com/mateoferrari97/my-path/cmd/server/internal"
 	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
@@ -27,19 +24,14 @@ func run() error {
 	}
 
 	svc := service.NewService(stg)
-	handler := internal.NewHandler(svc)
+	sv := server.NewServer()
+	handler := internal.NewHandler(sv, svc)
 
-	router := mux.NewRouter()
-	router.HandleFunc("/students/{studentEmail}/careers/{careerID}/subjects", handler.GetStudentSubjects)
-	router.HandleFunc("/careers/{careerID}/subjects/{subjectID}", handler.GetSubjectDetails)
-	router.HandleFunc("/careers/{careerID}/subjects/{subjectID}/professorships", handler.GetProfessorships)
-	/*
-		router.HandleFunc("/careers/{careerID}/subjects/{subjectID}/professorships", handler.GetProfessorships)
-		router.HandleFunc("/careers/{careerID}/subjects/{subjectID}/materials", handler.GetSubjectMaterials)
-	*/
+	handler.GetStudentSubjects()
+	handler.GetSubjectDetails()
+	handler.GetProfessorships()
 
-	log.Println("starting server on port :8080")
-	return http.ListenAndServe(":8080", router)
+	return sv.Run(":8080")
 }
 
 func newStorage() (*storage.Storage, error) {

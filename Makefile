@@ -32,6 +32,6 @@ mysql-login:
 .PHONY: test
 test:
 	@echo "=> Running tests"
-	@go test ./... -covermode=atomic -coverpkg=./... -count=1 -race;\
-	exit_code=$$?;\
+	@go test ./... -covermode=atomic -coverpkg=./... -count=1 -race;
+	\exit_code=$$?;\
  	exit $$exit_code
