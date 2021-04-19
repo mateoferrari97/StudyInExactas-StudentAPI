@@ -9,9 +9,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/mateoferrari97/my-path/src/server/internal"
-	"github.com/mateoferrari97/my-path/src/server/internal/service"
-	"github.com/mateoferrari97/my-path/src/server/internal/service/storage"
+	"github.com/mateoferrari97/my-path/cmd/server/internal"
+	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
+	"github.com/mateoferrari97/my-path/cmd/server/internal/service/storage"
 )
 
 func main() {

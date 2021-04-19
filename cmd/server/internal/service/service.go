@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mateoferrari97/my-path/src/server/internal/service/storage"
+	"github.com/mateoferrari97/my-path/cmd/server/internal/service/storage"
 	"sort"
 	"strconv"
 )

@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/mateoferrari97/my-path/src/server/internal/service"
+	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
 )
 
 type Service interface {
