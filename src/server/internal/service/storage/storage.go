@@ -49,7 +49,7 @@ func (s *Storage) GetStudentSubjects(studentEmail, careerID string) ([]StudentSu
 
 	params := map[string]interface{}{"email": studentEmail, "careerID": careerID}
 
-	type studentSubject struct {
+	var studentSubjects []struct {
 		ID            int64   `db:"subject_id"`
 		CorrelativeID *int64  `db:"correlative_id"`
 		Description   *string `db:"description"`
@@ -58,7 +58,6 @@ func (s *Storage) GetStudentSubjects(studentEmail, careerID string) ([]StudentSu
 		Type          string  `db:"type"`
 	}
 
-	var studentSubjects []studentSubject
 	if err := stmt.Select(&studentSubjects, params); err != nil {
 		return nil, err
 	}
@@ -171,14 +170,13 @@ func (s *Storage) GetProfessorshipSchedules(subjectID, careerID string) ([]Profe
 
 	params := map[string]interface{}{"subjectID": subjectID, "careerID": careerID}
 
-	type professorshipSchedule struct {
+	var professorshipSchedules []struct {
 		Day   int    `db:"day"`
 		Name  string `db:"name"`
 		Start string `db:"start"`
 		End   string `db:"end"`
 	}
 
-	var professorshipSchedules []professorshipSchedule
 	if err := stmt.Select(&professorshipSchedules, params); err != nil {
 		return nil, err
 	}
@@ -188,12 +186,12 @@ func (s *Storage) GetProfessorshipSchedules(subjectID, careerID string) ([]Profe
 	}
 
 	response := make([]ProfessorshipSchedule, 0, len(professorshipSchedules))
-	for _, professorshipSchedule := range professorshipSchedules {
+	for _, schedule := range professorshipSchedules {
 		response = append(response, ProfessorshipSchedule{
-			Day:   professorshipSchedule.Day,
-			Name:  professorshipSchedule.Name,
-			Start: professorshipSchedule.Start,
-			End:   professorshipSchedule.End,
+			Day:   schedule.Day,
+			Name:  schedule.Name,
+			Start: schedule.Start,
+			End:   schedule.End,
 		})
 	}
 

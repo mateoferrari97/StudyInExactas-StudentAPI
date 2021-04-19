@@ -112,17 +112,15 @@ func hasCorrelative(correlativeID int) bool {
 }
 
 func (s *Service) GetSubjectDetails(subjectID, careerID string) ([]byte, error) {
-	type (
-		subjectDetailsResponse struct {
-			ID     int     `json:"id"`
-			Hours  int     `json:"hours"`
-			Points int     `json:"points"`
-			Name   string  `json:"name"`
-			Type   string  `json:"type"`
-			URI    *string `json:"uri"`
-			Meet   *string `json:"meet"`
-		}
-	)
+	type subjectDetailsResponse struct {
+		ID     int     `json:"id"`
+		Hours  int     `json:"hours"`
+		Points int     `json:"points"`
+		Name   string  `json:"name"`
+		Type   string  `json:"type"`
+		URI    *string `json:"uri"`
+		Meet   *string `json:"meet"`
+	}
 
 	subjectDetails, err := s.storage.GetSubjectDetails(subjectID, careerID)
 	if err != nil {
@@ -151,13 +149,11 @@ func (s *Service) GetSubjectDetails(subjectID, careerID string) ([]byte, error) 
 }
 
 func (s *Service) GetProfessorshipSchedules(subjectID, careerID string) ([]byte, error) {
-	type (
-		schedule struct {
-			Day   string `json:"day"`
-			Start string `json:"start"`
-			End   string `json:"end"`
-		}
-	)
+	type schedule struct {
+		Day   string `json:"day"`
+		Start string `json:"start"`
+		End   string `json:"end"`
+	}
 
 	professorshipSchedules, err := s.storage.GetProfessorshipSchedules(subjectID, careerID)
 	if err != nil {
