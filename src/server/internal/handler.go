@@ -11,6 +11,7 @@ import (
 type Service interface {
 	GetStudentSubjects(studentEmail, careerID string) ([]byte, error)
 	GetSubjectDetails(subjectID, careerID string) ([]byte, error)
+	GetProfessorshipSchedules(subjectID, careerID string) ([]byte, error)
 }
 
 type Handler struct {
@@ -52,17 +53,6 @@ func (h *Handler) GetStudentSubjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetSubjectDetails(w http.ResponseWriter, r *http.Request) {
-	/*
-		"/career/{careerID}/subject/{id}"
-		{
-			"id": "123",
-			"hours": 123,
-			"type": OBLIGATORIA/ELECTIVA,
-			"points": 5,
-			"meet",
-			"uri":
-		}
-	*/
 	params := mux.Vars(r)
 	careerID, exist := params["careerID"]
 	if !exist || careerID == "" {
@@ -90,4 +80,34 @@ func (h *Handler) GetSubjectDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, _ = w.Write(subjectDetails)
+}
+
+func (h *Handler) GetProfessorshipSchedules(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	careerID, exist := params["careerID"]
+	if !exist || careerID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("career id is required"))
+		return
+	}
+
+	subjectID, exist := params["subjectID"]
+	if !exist || subjectID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte("subject id is required"))
+		return
+	}
+
+	schedules, err := h.service.GetProfessorshipSchedules(subjectID, careerID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		if errors.Is(err, service.ErrNotFound) {
+			w.WriteHeader(http.StatusNotFound)
+		}
+
+		_, _ = w.Write([]byte(err.Error()))
+		return
+	}
+
+	_, _ = w.Write(schedules)
 }

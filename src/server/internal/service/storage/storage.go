@@ -3,7 +3,6 @@ package storage
 import (
 	"database/sql"
 	"errors"
-
 	"github.com/jmoiron/sqlx"
 )
 
@@ -147,4 +146,56 @@ func (s *Storage) GetSubjectDetails(subjectID, careerID string) (SubjectDetails,
 		URI:    subjectDetails.URI,
 		Meet:   subjectDetails.Meet,
 	}, nil
+}
+
+type ProfessorshipSchedule struct {
+	Day   int
+	Name  string
+	Start string
+	End   string
+}
+
+const getProfessorshipSchedules = `SELECT p.name, s.day, s.start, s.end
+FROM professorship p
+         INNER JOIN schedule s on p.id = s.professorship_id
+WHERE p.subject_id = :subjectID
+ORDER BY day;`
+
+func (s *Storage) GetProfessorshipSchedules(subjectID, careerID string) ([]ProfessorshipSchedule, error) {
+	stmt, err := s.db.PrepareNamed(getProfessorshipSchedules)
+	if err != nil {
+		return nil, err
+	}
+
+	defer stmt.Close()
+
+	params := map[string]interface{}{"subjectID": subjectID, "careerID": careerID}
+
+	type professorshipSchedule struct {
+		Day   int    `db:"day"`
+		Name  string `db:"name"`
+		Start string `db:"start"`
+		End   string `db:"end"`
+	}
+
+	var professorshipSchedules []professorshipSchedule
+	if err := stmt.Select(&professorshipSchedules, params); err != nil {
+		return nil, err
+	}
+
+	if professorshipSchedules == nil {
+		return nil, ErrNotFound
+	}
+
+	response := make([]ProfessorshipSchedule, 0, len(professorshipSchedules))
+	for _, professorshipSchedule := range professorshipSchedules {
+		response = append(response, ProfessorshipSchedule{
+			Day:   professorshipSchedule.Day,
+			Name:  professorshipSchedule.Name,
+			Start: professorshipSchedule.Start,
+			End:   professorshipSchedule.End,
+		})
+	}
+
+	return response, nil
 }
