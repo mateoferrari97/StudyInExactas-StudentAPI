@@ -32,9 +32,9 @@ func run() error {
 	router := mux.NewRouter()
 	router.HandleFunc("/students/{studentEmail}/careers/{careerID}/subjects", handler.GetStudentSubjects)
 	router.HandleFunc("/careers/{careerID}/subjects/{subjectID}", handler.GetSubjectDetails)
-	router.HandleFunc("/careers/{careerID}/subjects/{subjectID}/professorships", handler.GetProfessorshipSchedules)
+	router.HandleFunc("/careers/{careerID}/subjects/{subjectID}/professorships", handler.GetProfessorships)
 	/*
-		router.HandleFunc("/careers/{careerID}/subjects/{subjectID}/professorships", handler.GetProfessorshipSchedules)
+		router.HandleFunc("/careers/{careerID}/subjects/{subjectID}/professorships", handler.GetProfessorships)
 		router.HandleFunc("/careers/{careerID}/subjects/{subjectID}/materials", handler.GetSubjectMaterials)
 	*/
 

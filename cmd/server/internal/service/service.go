@@ -36,7 +36,7 @@ var (
 type Storage interface {
 	GetStudentSubjects(studentEmail, careerID string) ([]storage.StudentSubject, error)
 	GetSubjectDetails(subjectID, careerID string) (storage.SubjectDetails, error)
-	GetProfessorshipSchedules(subjectID, careerID string) ([]storage.ProfessorshipSchedule, error)
+	GetProfessorships(subjectID, careerID string) ([]storage.Professorship, error)
 }
 
 type Service struct {
@@ -58,8 +58,8 @@ func (s *Service) GetStudentSubjects(studentEmail, careerID string) ([]byte, err
 		}
 
 		getStudentSubjectsResponse struct {
-			SubjectsCorrelatives map[string][]int          `json:"subjects_correlatives"`
-			Subjects             map[string]studentSubject `json:"subjects"`
+			Correlatives map[string][]int          `json:"correlatives"`
+			Subjects     map[string]studentSubject `json:"subjects"`
 		}
 	)
 
@@ -69,7 +69,7 @@ func (s *Service) GetStudentSubjects(studentEmail, careerID string) ([]byte, err
 			return nil, fmt.Errorf("could not get student subjects from [email: %s]: %w", studentEmail, ErrNotFound)
 		}
 
-		return nil, fmt.Errorf("could not get student subjects from [email: %s]: %v", studentEmail, err)
+		return nil, fmt.Errorf("could not get student subjects from [student_email: %s and career_id: %s]: %v", studentEmail, careerID, err)
 	}
 
 	subjects := make(map[string]studentSubject, len(studentSubjects))
@@ -96,8 +96,8 @@ func (s *Service) GetStudentSubjects(studentEmail, careerID string) ([]byte, err
 	}
 
 	response, err := json.Marshal(getStudentSubjectsResponse{
-		SubjectsCorrelatives: subjectsCorrelatives,
-		Subjects:             subjects,
+		Correlatives: subjectsCorrelatives,
+		Subjects:     subjects,
 	})
 
 	if err != nil {
@@ -125,10 +125,10 @@ func (s *Service) GetSubjectDetails(subjectID, careerID string) ([]byte, error) 
 	subjectDetails, err := s.storage.GetSubjectDetails(subjectID, careerID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return nil, fmt.Errorf("could not get subject details from [id: %s]: %w", subjectID, ErrNotFound)
+			return nil, fmt.Errorf("could not get subject details from [subect_id: %s and career_id: %s]: %w", subjectID, careerID, ErrNotFound)
 		}
 
-		return nil, fmt.Errorf("could not get subject details from [id: %s]: %v", subjectID, err)
+		return nil, fmt.Errorf("could not get subject details from [subect_id: %s and career_id: %s]: %v", subjectID, careerID, err)
 	}
 
 	response, err := json.Marshal(subjectDetailsResponse{
@@ -148,24 +148,24 @@ func (s *Service) GetSubjectDetails(subjectID, careerID string) ([]byte, error) 
 	return response, nil
 }
 
-func (s *Service) GetProfessorshipSchedules(subjectID, careerID string) ([]byte, error) {
+func (s *Service) GetProfessorships(subjectID, careerID string) ([]byte, error) {
 	type schedule struct {
 		Day   string `json:"day"`
 		Start string `json:"start"`
 		End   string `json:"end"`
 	}
 
-	professorshipSchedules, err := s.storage.GetProfessorshipSchedules(subjectID, careerID)
+	professorships, err := s.storage.GetProfessorships(subjectID, careerID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return nil, fmt.Errorf("could not get professorship schedules from [subject_id: %s]: %w", subjectID, ErrNotFound)
+			return nil, fmt.Errorf("could not get professorship professorships from [subject_id: %s and career_id: %s]: %w", subjectID, careerID, ErrNotFound)
 		}
 
-		return nil, fmt.Errorf("could not get professorship schedules from [subject_id: %s]: %v", subjectID, err)
+		return nil, fmt.Errorf("could not get professorships from [subject_id: %s and career_id: %s]: %v", subjectID, careerID, err)
 	}
 
-	schedules := make(map[string][]schedule, len(professorshipSchedules))
-	for _, professorship := range professorshipSchedules {
+	professorshipInformation := make(map[string][]schedule, len(professorships))
+	for _, professorship := range professorships {
 		day, err := convertDayNumberToDay(professorship.Day)
 		if err != nil {
 			return nil, err
@@ -181,24 +181,24 @@ func (s *Service) GetProfessorshipSchedules(subjectID, careerID string) ([]byte,
 			return nil, err
 		}
 
-		if _, exist := schedules[professorship.Name]; !exist {
-			schedules[professorship.Name] = []schedule{}
+		if _, exist := professorshipInformation[professorship.Name]; !exist {
+			professorshipInformation[professorship.Name] = []schedule{}
 		}
 
-		schedules[professorship.Name] = append(schedules[professorship.Name], schedule{
+		professorshipInformation[professorship.Name] = append(professorshipInformation[professorship.Name], schedule{
 			Day:   day,
 			Start: start,
 			End:   end,
 		})
 	}
 
-	for _, schedule := range schedules {
+	for _, schedule := range professorshipInformation {
 		sort.Slice(schedule, func(i, j int) bool {
 			return isTargetLessThanCandidate(schedule[i].Day, schedule[j].Day)
 		})
 	}
 
-	response, err := json.Marshal(schedules)
+	response, err := json.Marshal(professorshipInformation)
 	if err != nil {
 		return nil, fmt.Errorf("could not marshal response: %v", err)
 	}

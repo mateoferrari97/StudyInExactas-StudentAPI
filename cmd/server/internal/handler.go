@@ -11,7 +11,7 @@ import (
 type Service interface {
 	GetStudentSubjects(studentEmail, careerID string) ([]byte, error)
 	GetSubjectDetails(subjectID, careerID string) ([]byte, error)
-	GetProfessorshipSchedules(subjectID, careerID string) ([]byte, error)
+	GetProfessorships(subjectID, careerID string) ([]byte, error)
 }
 
 type Handler struct {
@@ -82,7 +82,7 @@ func (h *Handler) GetSubjectDetails(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(subjectDetails)
 }
 
-func (h *Handler) GetProfessorshipSchedules(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetProfessorships(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	careerID, exist := params["careerID"]
 	if !exist || careerID == "" {
@@ -98,16 +98,17 @@ func (h *Handler) GetProfessorshipSchedules(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	schedules, err := h.service.GetProfessorshipSchedules(subjectID, careerID)
+	professorships, err := h.service.GetProfessorships(subjectID, careerID)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		if errors.Is(err, service.ErrNotFound) {
 			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 
 		_, _ = w.Write([]byte(err.Error()))
 		return
 	}
 
-	_, _ = w.Write(schedules)
+	_, _ = w.Write(professorships)
 }

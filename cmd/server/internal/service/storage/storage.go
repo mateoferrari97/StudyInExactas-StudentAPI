@@ -147,21 +147,22 @@ func (s *Storage) GetSubjectDetails(subjectID, careerID string) (SubjectDetails,
 	}, nil
 }
 
-type ProfessorshipSchedule struct {
+type Professorship struct {
 	Day   int
 	Name  string
 	Start string
 	End   string
 }
 
-const getProfessorshipSchedules = `SELECT p.name, s.day, s.start, s.end
+const getProfessorships = `SELECT p.name, s.day, s.start, s.end
 FROM professorship p
          INNER JOIN schedule s on p.id = s.professorship_id
-WHERE p.subject_id = :subjectID
+         INNER JOIN career_subject cs on p.career_subject_id = cs.id
+WHERE cs.subject_id = :subjectID AND cs.career_id = :careerID
 ORDER BY day;`
 
-func (s *Storage) GetProfessorshipSchedules(subjectID, careerID string) ([]ProfessorshipSchedule, error) {
-	stmt, err := s.db.PrepareNamed(getProfessorshipSchedules)
+func (s *Storage) GetProfessorships(subjectID, careerID string) ([]Professorship, error) {
+	stmt, err := s.db.PrepareNamed(getProfessorships)
 	if err != nil {
 		return nil, err
 	}
@@ -170,28 +171,28 @@ func (s *Storage) GetProfessorshipSchedules(subjectID, careerID string) ([]Profe
 
 	params := map[string]interface{}{"subjectID": subjectID, "careerID": careerID}
 
-	var professorshipSchedules []struct {
+	var professorships []struct {
 		Day   int    `db:"day"`
 		Name  string `db:"name"`
 		Start string `db:"start"`
 		End   string `db:"end"`
 	}
 
-	if err := stmt.Select(&professorshipSchedules, params); err != nil {
+	if err := stmt.Select(&professorships, params); err != nil {
 		return nil, err
 	}
 
-	if professorshipSchedules == nil {
+	if professorships == nil {
 		return nil, ErrNotFound
 	}
 
-	response := make([]ProfessorshipSchedule, 0, len(professorshipSchedules))
-	for _, schedule := range professorshipSchedules {
-		response = append(response, ProfessorshipSchedule{
-			Day:   schedule.Day,
-			Name:  schedule.Name,
-			Start: schedule.Start,
-			End:   schedule.End,
+	response := make([]Professorship, 0, len(professorships))
+	for _, professorship := range professorships {
+		response = append(response, Professorship{
+			Day:   professorship.Day,
+			Name:  professorship.Name,
+			Start: professorship.Start,
+			End:   professorship.End,
 		})
 	}
 
