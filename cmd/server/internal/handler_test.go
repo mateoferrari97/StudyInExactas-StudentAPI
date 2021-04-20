@@ -1,8 +1,10 @@
 package internal
 
 import (
-	"fmt"
+	"encoding/json"
+	"errors"
 	"github.com/gorilla/mux"
+	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
 	"github.com/mateoferrari97/my-path/internal/server"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -12,22 +14,11 @@ import (
 )
 
 type wrapperMock struct {
-	router *mux.Router
+	f server.HandlerFunc
 }
 
-func (w *wrapperMock) Wrap(method, pattern string, f server.HandlerFunc) {
-	wrapH := func(w http.ResponseWriter, r *http.Request) {
-		err := f(w, r)
-		if err == nil {
-			return
-		}
-
-		hErr := err.(*server.Error)
-		w.WriteHeader(hErr.StatusCode)
-		_, _ = w.Write([]byte(hErr.Message))
-	}
-
-	w.router.HandleFunc(pattern, wrapH).Methods(method)
+func (w *wrapperMock) Wrap(_, _ string, f server.HandlerFunc) {
+	w.f = f
 }
 
 type serviceMock struct {
@@ -49,24 +40,160 @@ func (s *serviceMock) GetProfessorships(subjectID, careerID string) ([]byte, err
 
 func TestHandler_GetStudentSubjects(t *testing.T) {
 	// Given
-	wrapper := wrapperMock{router: mux.NewRouter()}
-	service := serviceMock{}
-	service.On("GetStudentSubjects", "example@gmail.com", "1").Return([]byte(`{}`), nil)
+	wrapper := wrapperMock{}
+	service_ := serviceMock{}
+	service_.On("GetStudentSubjects", "example@gmail.com", "1").Return([]byte(`{
+		"correlatives": null,
+		"subjects": null
+	}`), nil)
 
-	h := NewHandler(&wrapper, &service)
+	h := NewHandler(&wrapper, &service_)
 	h.GetStudentSubjects()
 
-	ts := httptest.NewServer(wrapper.router)
-	defer ts.Close()
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest("GET", "whocares", nil)
+	r = mux.SetURLVars(r, map[string]string{
+		"studentEmail": "example@gmail.com",
+		"careerID":     "1",
+	})
 
 	// When
-	resp, err := http.Get(fmt.Sprintf("%s/students/example@gmail.com/careers/1/subjects", ts.URL))
+	err := wrapper.f(w, r)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	defer resp.Body.Close()
+	// Then
+	var responseBody struct {
+		Correlatives interface{} `json:"correlatives"`
+		Subjects     interface{} `json:"subjects"`
+	}
+
+	if err := json.NewDecoder(w.Body).Decode(&responseBody); err != nil {
+		t.Fatal(err)
+	}
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Nil(t, responseBody.Correlatives)
+	require.Nil(t, responseBody.Subjects)
+}
+
+func TestHandler_GetStudentSubjects_ParamsError(t *testing.T) {
+	type expectedError struct {
+		StatusCode int
+		Code       string
+		Message    string
+	}
+
+	tt := []struct {
+		name        string
+		params      map[string]string
+		expectedErr expectedError
+	}{
+		{
+			name: "student email is missing",
+			params: map[string]string{
+				"studentEmail": "",
+				"careerID":     "1",
+			},
+			expectedErr: expectedError{
+				StatusCode: http.StatusBadRequest,
+				Code:       "bad_request",
+				Message:    "student email is required",
+			},
+		},
+		{
+			name: "career id is missing",
+			params: map[string]string{
+				"studentEmail": "example@gmail.com",
+				"careerID":     "",
+			},
+			expectedErr: expectedError{
+				StatusCode: http.StatusBadRequest,
+				Code:       "bad_request",
+				Message:    "career id is required",
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// Given
+			wrapper := wrapperMock{}
+			service_ := serviceMock{}
+			h := NewHandler(&wrapper, &service_)
+			h.GetStudentSubjects()
+
+			w := httptest.NewRecorder()
+			r, _ := http.NewRequest("GET", "whocares", nil)
+			r = mux.SetURLVars(r, tc.params)
+
+			// When
+			err := wrapper.f(w, r)
+			if err == nil {
+				t.Fatal("test must fail")
+			}
+
+			// Then
+			hErr := err.(*server.Error)
+			require.Equal(t, tc.expectedErr.StatusCode, hErr.StatusCode)
+			require.Equal(t, tc.expectedErr.Code, hErr.Code)
+			require.Equal(t, tc.expectedErr.Message, hErr.Message)
+		})
+	}
+}
+
+func TestHandler_GetStudentSubjects_ServiceError(t *testing.T) {
+	// Given
+	wrapper := wrapperMock{}
+	service_ := serviceMock{}
+	service_.On("GetStudentSubjects", "example@gmail.com", "1").Return([]byte{}, errors.New("error"))
+
+	h := NewHandler(&wrapper, &service_)
+	h.GetStudentSubjects()
+
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest("GET", "whocares", nil)
+	r = mux.SetURLVars(r, map[string]string{
+		"studentEmail": "example@gmail.com",
+		"careerID":     "1",
+	})
+
+	// When
+	err := wrapper.f(w, r)
+	if err == nil {
+		t.Fatal("test must fail")
+	}
 
 	// Then
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.EqualError(t, err, "error")
+}
+
+func TestHandler_GetStudentSubjects_ServiceNotFoundError(t *testing.T) {
+	// Given
+	wrapper := wrapperMock{}
+	service_ := serviceMock{}
+	service_.On("GetStudentSubjects", "example@gmail.com", "1").Return([]byte{}, service.ErrNotFound)
+
+	h := NewHandler(&wrapper, &service_)
+	h.GetStudentSubjects()
+
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest("GET", "whocares", nil)
+	r = mux.SetURLVars(r, map[string]string{
+		"studentEmail": "example@gmail.com",
+		"careerID":     "1",
+	})
+
+	// When
+	err := wrapper.f(w, r)
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	hErr := err.(*server.Error)
+	require.Equal(t, http.StatusNotFound, hErr.StatusCode)
+	require.Equal(t, "not_found", hErr.Code)
+	require.Equal(t, "service: resource not found", hErr.Message)
 }
