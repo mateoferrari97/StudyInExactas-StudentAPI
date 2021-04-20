@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mateoferrari97/my-path/cmd/server/internal/service/storage"
 	"sort"
 	"strconv"
+
+	"github.com/mateoferrari97/my-path/cmd/server/internal/service/storage"
 )
 
 var ErrNotFound = errors.New("service: resource not found")

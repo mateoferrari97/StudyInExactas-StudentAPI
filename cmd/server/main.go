@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/mateoferrari97/my-path/internal/server"
 
 	"github.com/mateoferrari97/my-path/cmd/server/internal"
 	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
 	"github.com/mateoferrari97/my-path/cmd/server/internal/service/storage"
+	"github.com/mateoferrari97/my-path/internal/server"
 )
 
 func main() {

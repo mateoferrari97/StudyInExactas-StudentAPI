@@ -2,11 +2,12 @@ package internal
 
 import (
 	"errors"
-	"github.com/mateoferrari97/my-path/internal/server"
 	"net/http"
 
 	"github.com/gorilla/mux"
+
 	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
+	"github.com/mateoferrari97/my-path/internal/server"
 )
 
 type Wrapper interface {

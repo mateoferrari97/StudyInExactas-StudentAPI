@@ -3,14 +3,16 @@ package internal
 import (
 	"encoding/json"
 	"errors"
-	"github.com/gorilla/mux"
-	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
-	"github.com/mateoferrari97/my-path/internal/server"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
+	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
+	"github.com/mateoferrari97/my-path/internal/server"
 )
 
 type wrapperMock struct {
