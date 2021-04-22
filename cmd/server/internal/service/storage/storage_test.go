@@ -341,3 +341,104 @@ LIMIT 1;`
 	// Then
 	require.EqualError(t, err, "error")
 }
+
+func TestStorage_GetProfessorships(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `SELECT p.name, s.day, s.start, s.end
+FROM professorship p
+         INNER JOIN schedule s on p.id = s.professorship_id
+         INNER JOIN career_subject cs on p.career_subject_id = cs.id
+WHERE cs.subject_id = ? AND cs.career_id = ?
+ORDER BY day;`
+	mock.ExpectPrepare(q).WillReturnError(nil)
+	mock.ExpectQuery(q).
+		WithArgs("1", "2").
+		WillReturnError(nil).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"name", "day", "start", "end"}).
+				AddRow("Professorship 1", 1, "17:00:00", "21:00:00"))
+
+	// When
+	professorships, err := storage_.GetProfessorships("1", "2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Len(t, professorships, 1)
+
+	for _, professorship := range professorships {
+		require.Equal(t, "Professorship 1", professorship.Name)
+		require.Equal(t, 1, professorship.Day)
+		require.Equal(t, "17:00:00", professorship.Start)
+		require.Equal(t, "21:00:00", professorship.End)
+	}
+}
+
+func TestStorage_GetProfessorships_PrepareStmtError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `SELECT p.name, s.day, s.start, s.end
+FROM professorship p
+         INNER JOIN schedule s on p.id = s.professorship_id
+         INNER JOIN career_subject cs on p.career_subject_id = cs.id
+WHERE cs.subject_id = ? AND cs.career_id = ?
+ORDER BY day;`
+	mock.ExpectPrepare(q).WillReturnError(errors.New("error"))
+
+	// When
+	_, err = storage_.GetProfessorships("1", "2")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_GetProfessorships_ExecuteStmtError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `SELECT p.name, s.day, s.start, s.end
+FROM professorship p
+         INNER JOIN schedule s on p.id = s.professorship_id
+         INNER JOIN career_subject cs on p.career_subject_id = cs.id
+WHERE cs.subject_id = ? AND cs.career_id = ?
+ORDER BY day;`
+	mock.ExpectPrepare(q).WillReturnError(nil)
+	mock.ExpectQuery(q).WillReturnError(errors.New("error"))
+
+	// When
+	_, err = storage_.GetProfessorships("1", "2")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
