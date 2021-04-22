@@ -240,3 +240,104 @@ WHERE st.email = ? AND c.id = ?`
 	// Then
 	require.EqualError(t, err, "error")
 }
+
+func TestStorage_GetSubjectDetails(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `SELECT s.id, s.name, s.uri, s.meet, cs.type, cs.hours, cs.points
+FROM career_subject cs
+         INNER JOIN subject s ON cs.subject_id = s.id
+WHERE s.id = ?
+  AND career_id = ?
+LIMIT 1;`
+	mock.ExpectPrepare(q).WillReturnError(nil)
+	mock.ExpectQuery(q).
+		WithArgs("1", "2").
+		WillReturnError(nil).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"id", "hours", "points", "name", "type", "uri", "meet"}).
+				AddRow(1, 240, 8, "Subject 1", "REQUIRED", nil, nil))
+
+	// When
+	subject, err := storage_.GetSubjectDetails("1", "2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Equal(t, 1, subject.ID)
+	require.Equal(t, 240, subject.Hours)
+	require.Equal(t, 8, subject.Points)
+	require.Equal(t, "Subject 1", subject.Name)
+	require.Equal(t, "REQUIRED", subject.Type)
+	require.Nil(t, subject.URI)
+	require.Nil(t, subject.Meet)
+
+}
+
+func TestStorage_GetSubjectDetails_PrepareStmtError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `SELECT s.id, s.name, s.uri, s.meet, cs.type, cs.hours, cs.points
+FROM career_subject cs
+         INNER JOIN subject s ON cs.subject_id = s.id
+WHERE s.id = ?
+  AND career_id = ?
+LIMIT 1;`
+	mock.ExpectPrepare(q).WillReturnError(errors.New("error"))
+
+	// When
+	_, err = storage_.GetSubjectDetails("1", "2")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_GetSubjectDetails_ExecuteStmtError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `SELECT s.id, s.name, s.uri, s.meet, cs.type, cs.hours, cs.points
+FROM career_subject cs
+         INNER JOIN subject s ON cs.subject_id = s.id
+WHERE s.id = ?
+  AND career_id = ?
+LIMIT 1;`
+	mock.ExpectPrepare(q).WillReturnError(nil)
+	mock.ExpectQuery(q).WillReturnError(errors.New("error"))
+
+	// When
+	_, err = storage_.GetSubjectDetails("1", "2")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
