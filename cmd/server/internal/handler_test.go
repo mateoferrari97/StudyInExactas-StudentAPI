@@ -11,15 +11,15 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/mateoferrari97/Kit/web/server"
 	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
-	"github.com/mateoferrari97/my-path/internal/server"
 )
 
 type wrapperMock struct {
 	f server.HandlerFunc
 }
 
-func (w *wrapperMock) Wrap(_, _ string, f server.HandlerFunc) {
+func (w *wrapperMock) Wrap(_, _ string, f server.HandlerFunc, _ ...server.Middleware) {
 	w.f = f
 }
 

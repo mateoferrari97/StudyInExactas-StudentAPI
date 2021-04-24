@@ -6,12 +6,12 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/mateoferrari97/Kit/web/server"
 	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
-	"github.com/mateoferrari97/my-path/internal/server"
 )
 
 type Wrapper interface {
-	Wrap(method, pattern string, f server.HandlerFunc)
+	Wrap(method, pattern string, f server.HandlerFunc, mws ...server.Middleware)
 }
 
 type Service interface {
