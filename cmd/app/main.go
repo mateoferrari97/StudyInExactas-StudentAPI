@@ -7,9 +7,9 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/mateoferrari97/Kit/web/server"
-	"github.com/mateoferrari97/my-path/cmd/server/internal"
-	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
-	"github.com/mateoferrari97/my-path/cmd/server/internal/service/storage"
+	"github.com/mateoferrari97/my-path/cmd/app/internal"
+	"github.com/mateoferrari97/my-path/cmd/app/internal/service"
+	"github.com/mateoferrari97/my-path/cmd/app/internal/service/storage"
 )
 
 func main() {

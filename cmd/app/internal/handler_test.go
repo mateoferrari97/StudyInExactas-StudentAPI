@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/mateoferrari97/Kit/web/server"
-	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
+	"github.com/mateoferrari97/my-path/cmd/app/internal/service"
 )
 
 type wrapperMock struct {

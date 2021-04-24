@@ -2,7 +2,7 @@ package service
 
 import (
 	"errors"
-	"github.com/mateoferrari97/my-path/cmd/server/internal/service/storage"
+	"github.com/mateoferrari97/my-path/cmd/app/internal/service/storage"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"testing"
