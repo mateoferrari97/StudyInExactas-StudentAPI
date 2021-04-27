@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/mateoferrari97/my-path/cmd/server/internal/service/storage"
+	"github.com/mateoferrari97/AnitiMonono-StudentAPI/cmd/server/internal/service/storage"
 )
 
 var ErrNotFound = errors.New("service: resource not found")

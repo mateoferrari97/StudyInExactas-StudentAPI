@@ -1,6 +1,9 @@
-module github.com/mateoferrari97/my-path
+// +heroku goVersion go1.16
+// +heroku install ./cmd/...
 
-go 1.14
+module github.com/mateoferrari97/AnitiMonono-StudentAPI
+
+go 1.16
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0

@@ -6,8 +6,8 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/mateoferrari97/AnitiMonono-StudentAPI/cmd/server/internal/service"
 	"github.com/mateoferrari97/Kit/web/server"
-	"github.com/mateoferrari97/my-path/cmd/server/internal/service"
 )
 
 type Wrapper interface {
