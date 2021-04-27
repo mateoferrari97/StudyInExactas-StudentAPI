@@ -46,12 +46,12 @@ func getPort() string {
 }
 
 func newStorage() (*storage.Storage, error) {
-	source := os.Getenv("CLEARDB_DATABASE_URL")
+	source := os.Getenv("DATABASE_CONFIG")
 	if source == "" {
 		source = "root:root@tcp(localhost:3306)/university"
 	}
 
-	db, err := sqlx.Connect("mysql", source)
+	db, err := sqlx.Open("mysql", source)
 	if err != nil {
 		return nil, fmt.Errorf("could not connect to db: %v", err)
 	}
