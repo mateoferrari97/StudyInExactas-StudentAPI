@@ -33,7 +33,16 @@ func run() error {
 	handler.GetSubjectDetails()
 	handler.GetProfessorships()
 
-	return sv.Run(":8081")
+	return sv.Run(getPort())
+}
+
+func getPort() string {
+	port := os.Getenv("PORT")
+	if port == "" {
+		return ":8080"
+	}
+
+	return ":" + port
 }
 
 func newStorage() (*storage.Storage, error) {
