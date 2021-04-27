@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -32,11 +33,16 @@ func run() error {
 	handler.GetSubjectDetails()
 	handler.GetProfessorships()
 
-	return sv.Run(":8080")
+	return sv.Run(":8081")
 }
 
 func newStorage() (*storage.Storage, error) {
-	db, err := sqlx.Connect("mysql", "root:root@tcp(localhost:3306)/university")
+	source := os.Getenv("CLEARDB_DATABASE_URL")
+	if source == "" {
+		source = "root:root@tcp(localhost:3306)/university"
+	}
+
+	db, err := sqlx.Connect("mysql", source)
 	if err != nil {
 		return nil, fmt.Errorf("could not connect to db: %v", err)
 	}
