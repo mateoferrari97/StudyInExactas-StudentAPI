@@ -3,7 +3,7 @@ package storage
 import (
 	"database/sql"
 	"errors"
-
+	"fmt"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -26,19 +26,96 @@ type StudentSubject struct {
 	Description   *string
 }
 
+const getStudentCareerIDs = `SELECT career_id FROM student_career sc
+    INNER JOIN student s ON sc.student_id = s.id
+WHERE s.email = :email;`
+
+func (s *Storage) GetStudentCareerIDs(studentEmail string) ([]int, error) {
+	stmt, err := s.db.PrepareNamed(getStudentCareerIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	defer stmt.Close()
+
+	params := map[string]interface{}{"email": studentEmail}
+
+	var ids []int64
+	if err := stmt.Select(&ids, params); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+
+		return nil, err
+	}
+
+	var careersIDs []int
+	for _, id := range ids {
+		careersIDs = append(careersIDs, int(id))
+	}
+
+	return careersIDs, nil
+}
+
+const (
+	getStudentID            = `SELECT id FROM student WHERE email = ?;`
+	findCareerWithID        = `SELECT COUNT(1) FROM career WHERE id = ?;`
+	createStudentWithCareer = `INSERT INTO student_career (student_id, career_id) VALUES (?, ?);`
+)
+
+func (s *Storage) AssignStudentToCareer(studentEmail, careerID string) error {
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var studentID int
+	if err := tx.Get(&studentID, getStudentID, studentEmail); err != nil {
+		return err
+	}
+
+	if studentID == 0 {
+		return fmt.Errorf("could not find student: %w", ErrNotFound)
+	}
+
+	var careerCount int
+	if err := tx.Get(&careerCount, findCareerWithID, careerID); err != nil {
+		return err
+	}
+
+	if careerCount == 0 {
+		return fmt.Errorf("could not find career: %w", ErrNotFound)
+	}
+
+	_, err = tx.Exec(createStudentWithCareer, studentID, careerID)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit tx: %v", err)
+	}
+
+	return nil
+}
+
 const getStudentSubjects = `SELECT cs.subject_id,
        s.name,
        cs.correlative_id,
        cs.type,
-       scs.status,
+       IFNULL(scs.status, 'PENDIENTE') status,
        scs.description
 FROM student AS st
-         INNER JOIN student_career sc ON sc.student_id = st.id
-         INNER JOIN career_subject cs ON cs.career_id = sc.career_id
-         INNER JOIN career c ON c.id = cs.career_id
-         INNER JOIN student_career_subject scs ON scs.career_subject_id = cs.id AND st.id = scs.student_id
+         INNER JOIN career_subject cs ON cs.career_id = :careerID
          INNER JOIN subject s on s.id = cs.subject_id
-WHERE st.email = :email AND c.id = :careerID`
+         LEFT JOIN student_career_subject scs ON scs.student_id = st.id AND scs.career_subject_id = cs.id
+WHERE st.email = :email;`
 
 func (s *Storage) GetStudentSubjects(studentEmail, careerID string) ([]StudentSubject, error) {
 	stmt, err := s.db.PrepareNamed(getStudentSubjects)

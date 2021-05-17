@@ -29,6 +29,7 @@ func run() error {
 	sv := server.NewServer()
 	handler := internal.NewHandler(sv, svc)
 
+	handler.AssignStudentToCareer()
 	handler.GetStudentSubjects()
 	handler.GetSubjectDetails()
 	handler.GetProfessorships()

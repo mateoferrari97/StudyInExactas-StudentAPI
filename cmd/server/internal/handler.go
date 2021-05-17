@@ -18,6 +18,7 @@ type Service interface {
 	GetStudentSubjects(studentEmail, careerID string) ([]byte, error)
 	GetSubjectDetails(subjectID, careerID string) ([]byte, error)
 	GetProfessorships(subjectID, careerID string) ([]byte, error)
+	AssignStudentToCareer(studentEmail, careerID string) error
 }
 
 type Handler struct {
@@ -30,6 +31,25 @@ func NewHandler(wrapper Wrapper, service Service) *Handler {
 		wrapper: wrapper,
 		service: service,
 	}
+}
+
+func (h *Handler) AssignStudentToCareer() {
+	wrapH := func(w http.ResponseWriter, r *http.Request) error {
+		params := mux.Vars(r)
+		studentEmail, exist := params["studentEmail"]
+		if !exist || studentEmail == "" {
+			return server.NewError("student email is required", http.StatusBadRequest)
+		}
+
+		careerID, exist := params["careerID"]
+		if !exist || careerID == "" {
+			return server.NewError("career id is required", http.StatusBadRequest)
+		}
+
+		return h.service.AssignStudentToCareer(studentEmail, careerID)
+	}
+
+		h.wrapper.Wrap(http.MethodPost, "/students/{studentEmail}/careers/{careerID}", wrapH)
 }
 
 func (h *Handler) GetStudentSubjects() {

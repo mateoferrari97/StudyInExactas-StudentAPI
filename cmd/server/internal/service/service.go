@@ -10,6 +10,8 @@ import (
 	"github.com/mateoferrari97/AnitiMonono-StudentAPI/cmd/server/internal/service/storage"
 )
 
+const maxCareersPerStudent = 2
+
 var ErrNotFound = errors.New("service: resource not found")
 
 var (
@@ -38,6 +40,8 @@ type Storage interface {
 	GetStudentSubjects(studentEmail, careerID string) ([]storage.StudentSubject, error)
 	GetSubjectDetails(subjectID, careerID string) (storage.SubjectDetails, error)
 	GetProfessorships(subjectID, careerID string) ([]storage.Professorship, error)
+	GetStudentCareerIDs(studentEmail string) ([]int, error)
+	AssignStudentToCareer(studentEmail, careerID string) error
 }
 
 type Service struct {
@@ -46,6 +50,33 @@ type Service struct {
 
 func NewService(storage Storage) *Service {
 	return &Service{storage: storage}
+}
+
+func (s *Service) AssignStudentToCareer(studentEmail, careerID string) error {
+	careersIDs, err := s.storage.GetStudentCareerIDs(studentEmail)
+	if err != nil {
+		if !errors.Is(err, storage.ErrNotFound) {
+			return fmt.Errorf("could not get student [student_email: %s]: %v", studentEmail, err)
+		}
+	}
+
+	if careersIDs != nil {
+		for _, id := range careersIDs {
+			if strconv.Itoa(id) == careerID {
+				return fmt.Errorf("student [student_email: %s] is already enrolled in career", studentEmail)
+			}
+		}
+
+		if len(careersIDs) >= maxCareersPerStudent {
+			return fmt.Errorf("student [student_email: %s] already has 2 careers", studentEmail)
+		}
+	}
+
+	if err := s.storage.AssignStudentToCareer(studentEmail, careerID); err != nil {
+		return fmt.Errorf("could not assign student [student_email: %s] to career: %v", studentEmail, err)
+	}
+
+	return nil
 }
 
 func (s *Service) GetStudentSubjects(studentEmail, careerID string) ([]byte, error) {
