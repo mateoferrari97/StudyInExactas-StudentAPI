@@ -2,14 +2,24 @@ package service
 
 import (
 	"errors"
-	"github.com/mateoferrari97/AnitiMonono-StudentAPI/cmd/server/internal/service/storage"
+	"testing"
+
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"testing"
+
+	"github.com/mateoferrari97/AnitiMonono-StudentAPI/cmd/server/internal/service/storage"
 )
 
 type storageMock struct {
 	mock.Mock
+}
+
+func (s *storageMock) GetStudentCareerIDs(studentEmail string) ([]int, error) {
+	panic("implement me")
+}
+
+func (s *storageMock) AssignStudentToCareer(studentEmail, careerID string) error {
+	panic("implement me")
 }
 
 func (s *storageMock) GetStudentSubjects(studentEmail, careerID string) ([]storage.StudentSubject, error) {

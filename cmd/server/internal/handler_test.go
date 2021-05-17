@@ -27,6 +27,11 @@ type serviceMock struct {
 	mock.Mock
 }
 
+func (s *serviceMock) AssignStudentToCareer(studentEmail, careerID string) error {
+	args := s.Called(studentEmail, careerID)
+	return args.Error(0)
+}
+
 func (s *serviceMock) GetStudentSubjects(studentEmail, careerID string) ([]byte, error) {
 	args := s.Called(studentEmail, careerID)
 	return args.Get(0).([]byte), args.Error(1)
