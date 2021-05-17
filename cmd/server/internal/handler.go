@@ -46,10 +46,23 @@ func (h *Handler) AssignStudentToCareer() {
 			return server.NewError("career id is required", http.StatusBadRequest)
 		}
 
-		return h.service.AssignStudentToCareer(studentEmail, careerID)
+		if err := h.service.AssignStudentToCareer(studentEmail, careerID); err != nil {
+			switch {
+			case errors.Is(err, service.ErrNotFound):
+				return server.NewError(err.Error(), http.StatusNotFound)
+			case errors.Is(err, service.ErrCareerAlreadyAssigned):
+				return server.NewError(err.Error(), http.StatusConflict)
+			case errors.Is(err, service.ErrMaxCareerReached):
+				return server.NewError(err.Error(), http.StatusConflict)
+			default:
+				return err
+			}
+		}
+
+		return nil
 	}
 
-		h.wrapper.Wrap(http.MethodPost, "/students/{studentEmail}/careers/{careerID}", wrapH)
+	h.wrapper.Wrap(http.MethodPost, "/students/{studentEmail}/careers/{careerID}", wrapH)
 }
 
 func (h *Handler) GetStudentSubjects() {

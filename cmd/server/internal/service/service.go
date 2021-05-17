@@ -10,9 +10,13 @@ import (
 	"github.com/mateoferrari97/AnitiMonono-StudentAPI/cmd/server/internal/service/storage"
 )
 
-const maxCareersPerStudent = 2
+const maxCareersPerStudent = 3
 
-var ErrNotFound = errors.New("service: resource not found")
+var (
+	ErrNotFound              = errors.New("service: resource not found")
+	ErrCareerAlreadyAssigned = errors.New("service: career already assigned")
+	ErrMaxCareerReached      = errors.New("service: student already has maximum careers assigned")
+)
 
 var (
 	dayToDayNumber = map[string]int{
@@ -63,16 +67,20 @@ func (s *Service) AssignStudentToCareer(studentEmail, careerID string) error {
 	if careersIDs != nil {
 		for _, id := range careersIDs {
 			if strconv.Itoa(id) == careerID {
-				return fmt.Errorf("student [student_email: %s] is already enrolled in career", studentEmail)
+				return fmt.Errorf("student [student_email: %s] %w", studentEmail, ErrCareerAlreadyAssigned)
 			}
 		}
 
 		if len(careersIDs) >= maxCareersPerStudent {
-			return fmt.Errorf("student [student_email: %s] already has 2 careers", studentEmail)
+			return fmt.Errorf("student [student_email: %s] %w", studentEmail, ErrMaxCareerReached)
 		}
 	}
 
 	if err := s.storage.AssignStudentToCareer(studentEmail, careerID); err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return fmt.Errorf("could not assign student [student_email: %s] to career: %w", studentEmail, ErrNotFound)
+		}
+
 		return fmt.Errorf("could not assign student [student_email: %s] to career: %v", studentEmail, err)
 	}
 
@@ -98,10 +106,10 @@ func (s *Service) GetStudentSubjects(studentEmail, careerID string) ([]byte, err
 	studentSubjects, err := s.storage.GetStudentSubjects(studentEmail, careerID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return nil, fmt.Errorf("could not get student subjects from [email: %s]: %w", studentEmail, ErrNotFound)
+			return nil, fmt.Errorf("could not get subjects: %w", ErrNotFound)
 		}
 
-		return nil, fmt.Errorf("could not get student subjects from [student_email: %s and career_id: %s]: %v", studentEmail, careerID, err)
+		return nil, fmt.Errorf("could not get subjects: %v", err)
 	}
 
 	subjects := make(map[string]studentSubject, len(studentSubjects))
@@ -157,10 +165,10 @@ func (s *Service) GetSubjectDetails(subjectID, careerID string) ([]byte, error) 
 	subjectDetails, err := s.storage.GetSubjectDetails(subjectID, careerID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return nil, fmt.Errorf("could not get subject details from [subect_id: %s and career_id: %s]: %w", subjectID, careerID, ErrNotFound)
+			return nil, fmt.Errorf("could not get subject details: %w", ErrNotFound)
 		}
 
-		return nil, fmt.Errorf("could not get subject details from [subect_id: %s and career_id: %s]: %v", subjectID, careerID, err)
+		return nil, fmt.Errorf("could not get subject details: %v", err)
 	}
 
 	response, err := json.Marshal(subjectDetailsResponse{
@@ -190,10 +198,10 @@ func (s *Service) GetProfessorships(subjectID, careerID string) ([]byte, error) 
 	professorships, err := s.storage.GetProfessorships(subjectID, careerID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return nil, fmt.Errorf("could not get professorship professorships from [subject_id: %s and career_id: %s]: %w", subjectID, careerID, ErrNotFound)
+			return nil, fmt.Errorf("could not get professorships: %w", ErrNotFound)
 		}
 
-		return nil, fmt.Errorf("could not get professorships from [subject_id: %s and career_id: %s]: %v", subjectID, careerID, err)
+		return nil, fmt.Errorf("could not get professorships: %v", err)
 	}
 
 	professorshipInformation := make(map[string][]schedule, len(professorships))

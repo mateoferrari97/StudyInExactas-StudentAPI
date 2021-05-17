@@ -85,7 +85,7 @@ func TestService_GetStudentSubjects_StorageError(t *testing.T) {
 	}
 
 	// Then
-	require.EqualError(t, err, "could not get student subjects from [student_email: example@gmail.com and career_id: 1]: error")
+	require.EqualError(t, err, "could not get subjects: error")
 }
 
 func TestService_GetStudentSubjects_StorageNotFoundError(t *testing.T) {
@@ -102,7 +102,7 @@ func TestService_GetStudentSubjects_StorageNotFoundError(t *testing.T) {
 	}
 
 	// Then
-	require.EqualError(t, err, "could not get student subjects from [email: example@gmail.com]: service: resource not found")
+	require.EqualError(t, err, "could not get subjects: service: resource not found")
 }
 
 func TestService_GetSubjectDetails(t *testing.T) {
@@ -144,7 +144,7 @@ func TestService_GetSubjectDetails_StorageError(t *testing.T) {
 	}
 
 	// Then
-	require.EqualError(t, err, "could not get subject details from [subect_id: 1 and career_id: 2]: error")
+	require.EqualError(t, err, "could not get subject details: error")
 }
 
 func TestService_GetSubjectDetails_StorageNotFoundError(t *testing.T) {
@@ -161,7 +161,7 @@ func TestService_GetSubjectDetails_StorageNotFoundError(t *testing.T) {
 	}
 
 	// Then
-	require.EqualError(t, err, "could not get subject details from [subect_id: 1 and career_id: 2]: service: resource not found")
+	require.EqualError(t, err, "could not get subject details: service: resource not found")
 }
 
 func TestService_GetProfessorships(t *testing.T) {
@@ -214,7 +214,7 @@ func TestService_GetProfessorships_StorageError(t *testing.T) {
 	}
 
 	// Then
-	require.EqualError(t, err, "could not get professorships from [subject_id: 1 and career_id: 2]: error")
+	require.EqualError(t, err, "could not get professorships: error")
 }
 
 func TestService_GetProfessorships_StorageNotFoundError(t *testing.T) {
@@ -231,7 +231,7 @@ func TestService_GetProfessorships_StorageNotFoundError(t *testing.T) {
 	}
 
 	// Then
-	require.EqualError(t, err, "could not get professorship professorships from [subject_id: 1 and career_id: 2]: service: resource not found")
+	require.EqualError(t, err, "could not get professorships: service: resource not found")
 }
 
 func TestService_GetProfessorships_DayNotExist(t *testing.T) {
