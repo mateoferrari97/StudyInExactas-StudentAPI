@@ -27,6 +27,4 @@ jobs:
           golangci-lint run ./...
 
     - name: Test
-      run: go test ./... -covermode=atomic -coverpkg=./... -count=1 -race;
-            \exit_code=$$?;\
-            exit $$exit_code
+      run: go test ./... -covermode=atomic -coverpkg=./... -count=1 -race
