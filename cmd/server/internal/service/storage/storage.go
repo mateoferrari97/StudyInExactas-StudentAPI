@@ -67,7 +67,7 @@ const (
 func (s *Storage) AssignStudentToCareer(studentEmail, careerID string) error {
 	tx, err := s.db.Beginx()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not begin tx: %v", err)
 	}
 
 	defer func() {

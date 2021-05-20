@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -8,6 +9,404 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
+
+func TestStorage_GetStudentCareerIDs(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `SELECT career_id FROM student_career sc
+    INNER JOIN student s ON sc.student_id = s.id
+WHERE s.email = ?;`
+	mock.ExpectPrepare(q).WillReturnError(nil)
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(
+			sqlmock.NewRows([]string{"career_id"}).
+				AddRow(2))
+
+	// When
+	careersIDs, err := storage_.GetStudentCareerIDs("example@gmail.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.NotNil(t, careersIDs)
+	require.Len(t, careersIDs, 1)
+
+	for _, careerID := range careersIDs {
+		require.Equal(t, 2, careerID)
+	}
+}
+
+func TestStorage_GetStudentCareerIDs_PrepareStmtError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `SELECT career_id FROM student_career sc
+    INNER JOIN student s ON sc.student_id = s.id
+WHERE s.email = ?;`
+	mock.ExpectPrepare(q).WillReturnError(errors.New("error"))
+
+	// When
+	_, err = storage_.GetStudentCareerIDs("example@gmail.com")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_GetStudentCareerIDs_ExecuteStmtError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `SELECT career_id FROM student_career sc
+    INNER JOIN student s ON sc.student_id = s.id
+WHERE s.email = ?;`
+	mock.ExpectPrepare(q).WillReturnError(nil)
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(errors.New("error"))
+
+	// When
+	_, err = storage_.GetStudentCareerIDs("example@gmail.com")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_GetStudentCareerIDs_NotFoundError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `SELECT career_id FROM student_career sc
+    INNER JOIN student s ON sc.student_id = s.id
+WHERE s.email = ?;`
+	mock.ExpectPrepare(q).WillReturnError(nil)
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(sql.ErrNoRows)
+
+	// When
+	_, err = storage_.GetStudentCareerIDs("example@gmail.com")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "storage: resource not found")
+}
+
+func TestStorage_AssignStudentToCareer(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM career WHERE id = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(2))
+
+	q = `INSERT INTO student_career (student_id, career_id) VALUES (?, ?);`
+	mock.ExpectExec(q).
+		WithArgs(1, "1").
+		WillReturnError(nil).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	mock.ExpectCommit()
+
+	// When
+	err = storage_.AssignStudentToCareer("example@gmail.com", "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Nil(t, err)
+}
+
+func TestStorage_AssignStudentToCareer_BeginTxError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin().WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not begin tx: error")
+}
+
+func TestStorage_AssignStudentToCareer_GetStudentIDError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_AssignStudentToCareer_GetStudentIDNotFound(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(0))
+
+	mock.ExpectCommit()
+
+	// When
+	err = storage_.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not find student: storage: resource not found")
+}
+
+func TestStorage_AssignStudentToCareer_FindCareerWithIDError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM career WHERE id = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("1").
+		WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_AssignStudentToCareer_FindCareerWithIDNotFound(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM career WHERE id = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(0))
+
+	// When
+	err = storage_.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not find career: storage: resource not found")
+}
+
+func TestStorage_AssignStudentToCareer_CreateStudentWithCareerError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM career WHERE id = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(2))
+
+	q = `INSERT INTO student_career (student_id, career_id) VALUES (?, ?);`
+	mock.ExpectExec(q).
+		WithArgs(1, "1").
+		WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_AssignStudentToCareer_CommitTxError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM career WHERE id = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(2))
+
+	q = `INSERT INTO student_career (student_id, career_id) VALUES (?, ?);`
+	mock.ExpectExec(q).
+		WithArgs(1, "1").
+		WillReturnError(nil).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	mock.ExpectCommit().WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not commit tx: error")
+}
 
 func TestStorage_GetStudentSubjects(t *testing.T) {
 	// Given
