@@ -47,6 +47,154 @@ func (s *serviceMock) GetProfessorships(subjectID, careerID string) ([]byte, err
 	return args.Get(0).([]byte), args.Error(1)
 }
 
+func TestHandler_AssignStudentToCareer(t *testing.T) {
+	// Given
+	wrapper := wrapperMock{}
+	service_ := serviceMock{}
+	service_.On("AssignStudentToCareer", "example@gmail.com", "1").Return(nil)
+
+	h := NewHandler(&wrapper, &service_)
+	h.AssignStudentToCareer()
+
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest("GET", "whocares", nil)
+	r = mux.SetURLVars(r, map[string]string{
+		"studentEmail": "example@gmail.com",
+		"careerID":     "1",
+	})
+
+	// When
+	err := wrapper.f(w, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Nil(t, err)
+}
+
+func TestHandler_AssignStudentToCareer_ParamsError(t *testing.T) {
+	type expectedError struct {
+		StatusCode int
+		Code       string
+		Message    string
+	}
+
+	tt := []struct {
+		name        string
+		params      map[string]string
+		expectedErr expectedError
+	}{
+		{
+			name: "student email is missing",
+			params: map[string]string{
+				"studentEmail": "",
+				"careerID":     "1",
+			},
+			expectedErr: expectedError{
+				StatusCode: http.StatusBadRequest,
+				Code:       "bad_request",
+				Message:    "student email is required",
+			},
+		},
+		{
+			name: "career id is missing",
+			params: map[string]string{
+				"studentEmail": "example@gmail.com",
+				"careerID":     "",
+			},
+			expectedErr: expectedError{
+				StatusCode: http.StatusBadRequest,
+				Code:       "bad_request",
+				Message:    "career id is required",
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// Given
+			wrapper := wrapperMock{}
+			service_ := serviceMock{}
+			h := NewHandler(&wrapper, &service_)
+			h.AssignStudentToCareer()
+
+			w := httptest.NewRecorder()
+			r, _ := http.NewRequest("GET", "whocares", nil)
+			r = mux.SetURLVars(r, tc.params)
+
+			// When
+			err := wrapper.f(w, r)
+			if err == nil {
+				t.Fatal("test must fail")
+			}
+
+			// Then
+			hErr := err.(*server.Error)
+			require.Equal(t, tc.expectedErr.StatusCode, hErr.StatusCode)
+			require.Equal(t, tc.expectedErr.Code, hErr.Code)
+			require.Equal(t, tc.expectedErr.Message, hErr.Message)
+		})
+	}
+}
+
+func TestHandler_AssignStudentToCareer_ServiceError(t *testing.T) {
+	tt := []struct {
+		name          string
+		expectedError string
+		returnedError error
+	}{
+		{
+			name:          "unknown error",
+			expectedError: "error",
+			returnedError: errors.New("error"),
+		},
+		{
+			name:          "not found error",
+			expectedError: "404 not_found: service: resource not found",
+			returnedError: service.ErrNotFound,
+		},
+		{
+			name:          "career already assigned error",
+			expectedError: "409 conflict: service: career already assigned",
+			returnedError: service.ErrCareerAlreadyAssigned,
+		},
+		{
+			name:          "max career reached error",
+			expectedError: "409 conflict: service: student already has maximum careers assigned",
+			returnedError: service.ErrMaxCareerReached,
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// Given
+			wrapper := wrapperMock{}
+			service_ := serviceMock{}
+			service_.On("AssignStudentToCareer", "example@gmail.com", "1").Return(tc.returnedError)
+
+			h := NewHandler(&wrapper, &service_)
+			h.AssignStudentToCareer()
+
+			w := httptest.NewRecorder()
+			r, _ := http.NewRequest("GET", "whocares", nil)
+			r = mux.SetURLVars(r, map[string]string{
+				"studentEmail": "example@gmail.com",
+				"careerID":     "1",
+			})
+
+			// When
+			err := wrapper.f(w, r)
+			if err == nil {
+				t.Fatal("test must fail")
+			}
+
+			// Then
+			require.EqualError(t, err, tc.expectedError)
+		})
+	}
+}
+
 func TestHandler_GetStudentSubjects(t *testing.T) {
 	// Given
 	wrapper := wrapperMock{}
