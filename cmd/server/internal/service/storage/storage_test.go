@@ -24,18 +24,16 @@ func TestStorage_GetStudentSubjects(t *testing.T) {
        s.name,
        cs.correlative_id,
        cs.type,
-       scs.status,
+       IFNULL(scs.status, 'PENDIENTE') status,
        scs.description
 FROM student AS st
-         INNER JOIN student_career sc ON sc.student_id = st.id
-         INNER JOIN career_subject cs ON cs.career_id = sc.career_id
-         INNER JOIN career c ON c.id = cs.career_id
-         INNER JOIN student_career_subject scs ON scs.career_subject_id = cs.id AND st.id = scs.student_id
+         INNER JOIN career_subject cs ON cs.career_id = ?
          INNER JOIN subject s on s.id = cs.subject_id
-WHERE st.email = ? AND c.id = ?`
+         LEFT JOIN student_career_subject scs ON scs.student_id = st.id AND scs.career_subject_id = cs.id
+WHERE st.email = ?`
 	mock.ExpectPrepare(q).WillReturnError(nil)
 	mock.ExpectQuery(q).
-		WithArgs("example@gmail.com", "1").
+		WithArgs("1", "example@gmail.com").
 		WillReturnError(nil).
 		WillReturnRows(
 			sqlmock.NewRows([]string{"subject_id", "name", "correlative_id", "type", "status", "description"}).
@@ -76,18 +74,16 @@ func TestStorage_GetStudentSubjects_SubjectHasCorrelative(t *testing.T) {
        s.name,
        cs.correlative_id,
        cs.type,
-       scs.status,
+       IFNULL(scs.status, 'PENDIENTE') status,
        scs.description
 FROM student AS st
-         INNER JOIN student_career sc ON sc.student_id = st.id
-         INNER JOIN career_subject cs ON cs.career_id = sc.career_id
-         INNER JOIN career c ON c.id = cs.career_id
-         INNER JOIN student_career_subject scs ON scs.career_subject_id = cs.id AND st.id = scs.student_id
+         INNER JOIN career_subject cs ON cs.career_id = ?
          INNER JOIN subject s on s.id = cs.subject_id
-WHERE st.email = ? AND c.id = ?`
+         LEFT JOIN student_career_subject scs ON scs.student_id = st.id AND scs.career_subject_id = cs.id
+WHERE st.email = ?`
 	mock.ExpectPrepare(q).WillReturnError(nil)
 	mock.ExpectQuery(q).
-		WithArgs("example@gmail.com", "1").
+		WithArgs("1", "example@gmail.com").
 		WillReturnError(nil).
 		WillReturnRows(
 			sqlmock.NewRows([]string{"subject_id", "name", "correlative_id", "type", "status", "description"}).
@@ -128,18 +124,16 @@ func TestStorage_GetStudentSubjects_SubjectHasDescription(t *testing.T) {
        s.name,
        cs.correlative_id,
        cs.type,
-       scs.status,
+       IFNULL(scs.status, 'PENDIENTE') status,
        scs.description
 FROM student AS st
-         INNER JOIN student_career sc ON sc.student_id = st.id
-         INNER JOIN career_subject cs ON cs.career_id = sc.career_id
-         INNER JOIN career c ON c.id = cs.career_id
-         INNER JOIN student_career_subject scs ON scs.career_subject_id = cs.id AND st.id = scs.student_id
+         INNER JOIN career_subject cs ON cs.career_id = ?
          INNER JOIN subject s on s.id = cs.subject_id
-WHERE st.email = ? AND c.id = ?`
+         LEFT JOIN student_career_subject scs ON scs.student_id = st.id AND scs.career_subject_id = cs.id
+WHERE st.email = ?`
 	mock.ExpectPrepare(q).WillReturnError(nil)
 	mock.ExpectQuery(q).
-		WithArgs("example@gmail.com", "1").
+		WithArgs("1", "example@gmail.com").
 		WillReturnError(nil).
 		WillReturnRows(
 			sqlmock.NewRows([]string{"subject_id", "name", "correlative_id", "type", "status", "description"}).
@@ -181,15 +175,13 @@ func TestStorage_GetStudentSubjects_PrepareStmtError(t *testing.T) {
        s.name,
        cs.correlative_id,
        cs.type,
-       scs.status,
+       IFNULL(scs.status, 'PENDIENTE') status,
        scs.description
 FROM student AS st
-         INNER JOIN student_career sc ON sc.student_id = st.id
-         INNER JOIN career_subject cs ON cs.career_id = sc.career_id
-         INNER JOIN career c ON c.id = cs.career_id
-         INNER JOIN student_career_subject scs ON scs.career_subject_id = cs.id AND st.id = scs.student_id
+         INNER JOIN career_subject cs ON cs.career_id = ?
          INNER JOIN subject s on s.id = cs.subject_id
-WHERE st.email = ? AND c.id = ?`
+         LEFT JOIN student_career_subject scs ON scs.student_id = st.id AND scs.career_subject_id = cs.id
+WHERE st.email = ?`
 	mock.ExpectPrepare(q).WillReturnError(errors.New("error"))
 
 	// When
@@ -217,18 +209,16 @@ func TestStorage_GetStudentSubjects_ExecuteStmtError(t *testing.T) {
        s.name,
        cs.correlative_id,
        cs.type,
-       scs.status,
+       IFNULL(scs.status, 'PENDIENTE') status,
        scs.description
 FROM student AS st
-         INNER JOIN student_career sc ON sc.student_id = st.id
-         INNER JOIN career_subject cs ON cs.career_id = sc.career_id
-         INNER JOIN career c ON c.id = cs.career_id
-         INNER JOIN student_career_subject scs ON scs.career_subject_id = cs.id AND st.id = scs.student_id
+         INNER JOIN career_subject cs ON cs.career_id = ?
          INNER JOIN subject s on s.id = cs.subject_id
-WHERE st.email = ? AND c.id = ?`
+         LEFT JOIN student_career_subject scs ON scs.student_id = st.id AND scs.career_subject_id = cs.id
+WHERE st.email = ?`
 	mock.ExpectPrepare(q).WillReturnError(nil)
 	mock.ExpectQuery(q).
-		WithArgs("example@gmail.com", "1").
+		WithArgs("1", "example@gmail.com").
 		WillReturnError(errors.New("error"))
 
 	// When

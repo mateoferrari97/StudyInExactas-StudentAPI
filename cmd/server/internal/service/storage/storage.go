@@ -116,7 +116,7 @@ FROM student AS st
          INNER JOIN career_subject cs ON cs.career_id = :careerID
          INNER JOIN subject s on s.id = cs.subject_id
          LEFT JOIN student_career_subject scs ON scs.student_id = st.id AND scs.career_subject_id = cs.id
-WHERE st.email = :email;`
+WHERE st.email = :email`
 
 func (s *Storage) GetStudentSubjects(studentEmail, careerID string) ([]StudentSubject, error) {
 	stmt, err := s.db.PrepareNamed(getStudentSubjects)
