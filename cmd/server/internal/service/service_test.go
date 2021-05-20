@@ -15,11 +15,13 @@ type storageMock struct {
 }
 
 func (s *storageMock) GetStudentCareerIDs(studentEmail string) ([]int, error) {
-	panic("implement me")
+	args := s.Called(studentEmail)
+	return args.Get(0).([]int), args.Error(1)
 }
 
 func (s *storageMock) AssignStudentToCareer(studentEmail, careerID string) error {
-	panic("implement me")
+	args := s.Called(studentEmail, careerID)
+	return args.Error(0)
 }
 
 func (s *storageMock) GetStudentSubjects(studentEmail, careerID string) ([]storage.StudentSubject, error) {
@@ -35,6 +37,129 @@ func (s *storageMock) GetSubjectDetails(subjectID, careerID string) (storage.Sub
 func (s *storageMock) GetProfessorships(subjectID, careerID string) ([]storage.Professorship, error) {
 	args := s.Called(subjectID, careerID)
 	return args.Get(0).([]storage.Professorship), args.Error(1)
+}
+
+func TestService_AssignStudentToCareer(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("GetStudentCareerIDs", "example@gmail.com").Return([]int{}, nil)
+	storage_.On("AssignStudentToCareer", "example@gmail.com", "1").Return(nil)
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.AssignStudentToCareer("example@gmail.com", "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Nil(t, err)
+}
+
+func TestService_AssignStudentToCareer_GetStudentCareerIDsError(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("GetStudentCareerIDs", "example@gmail.com").Return([]int{}, errors.New("error"))
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not get student careers [student_email: example@gmail.com]: error")
+}
+
+func TestService_AssignStudentToCareer_GetStudentCareerIDsNotFoundError(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("GetStudentCareerIDs", "example@gmail.com").Return([]int{}, storage.ErrNotFound)
+	storage_.On("AssignStudentToCareer", "example@gmail.com", "1").Return(nil)
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.AssignStudentToCareer("example@gmail.com", "1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Nil(t, err)
+}
+
+func TestService_AssignStudentToCareer_CareerAlreadyAssignedError(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("GetStudentCareerIDs", "example@gmail.com").Return([]int{1}, nil)
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "student [student_email: example@gmail.com] service: career already assigned")
+}
+
+func TestService_AssignStudentToCareer_MaxCareerReachedError(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("GetStudentCareerIDs", "example@gmail.com").Return([]int{2, 3, 4}, nil)
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "student [student_email: example@gmail.com] service: student already has maximum careers assigned")
+}
+
+func TestService_AssignStudentToCareer_StorageAssignStudentToCareerError(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("GetStudentCareerIDs", "example@gmail.com").Return([]int{}, nil)
+	storage_.On("AssignStudentToCareer", "example@gmail.com", "1").Return(errors.New("error"))
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not assign student [student_email: example@gmail.com] to career: error")
+}
+
+func TestService_AssignStudentToCareer_StorageAssignStudentToCareerNotFoundError(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("GetStudentCareerIDs", "example@gmail.com").Return([]int{}, nil)
+	storage_.On("AssignStudentToCareer", "example@gmail.com", "1").Return(storage.ErrNotFound)
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.AssignStudentToCareer("example@gmail.com", "1")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not assign student [student_email: example@gmail.com] to career: service: resource not found")
 }
 
 func TestService_GetStudentSubjects(t *testing.T) {

@@ -58,10 +58,8 @@ func NewService(storage Storage) *Service {
 
 func (s *Service) AssignStudentToCareer(studentEmail, careerID string) error {
 	careersIDs, err := s.storage.GetStudentCareerIDs(studentEmail)
-	if err != nil {
-		if !errors.Is(err, storage.ErrNotFound) {
-			return fmt.Errorf("could not get student [student_email: %s]: %v", studentEmail, err)
-		}
+	if err != nil && !errors.Is(err, storage.ErrNotFound) {
+		return fmt.Errorf("could not get student careers [student_email: %s]: %v", studentEmail, err)
 	}
 
 	if careersIDs != nil {
