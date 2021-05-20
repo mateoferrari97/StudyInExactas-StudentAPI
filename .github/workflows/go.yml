@@ -21,10 +21,11 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Linter
+    - name: Install Linter
       run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
-          
-          golangci-lint run ./...
+
+    - name: Run Linter
+      run: golangci-lint run ./...
 
     - name: Test
       run: go test ./... -covermode=atomic -coverpkg=./... -count=1 -race
