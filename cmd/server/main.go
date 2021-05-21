@@ -30,9 +30,9 @@ func run() error {
 	handler := internal.NewHandler(sv, svc)
 
 	// Create Student
-	// Update Student Subject
 	handler.AssignStudentToCareer()
 	handler.GetStudentSubjects()
+	handler.UpdateStudentSubject()
 	handler.GetSubjectDetails()
 	handler.GetProfessorships()
 

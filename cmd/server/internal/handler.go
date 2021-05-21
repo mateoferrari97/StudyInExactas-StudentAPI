@@ -15,10 +15,11 @@ type Wrapper interface {
 }
 
 type Service interface {
+	AssignStudentToCareer(studentEmail, careerID string) error
 	GetStudentSubjects(studentEmail, careerID string) ([]byte, error)
+	UpdateStudentSubject(studentEmail, careerID, subjectID string) error
 	GetSubjectDetails(subjectID, careerID string) ([]byte, error)
 	GetProfessorships(subjectID, careerID string) ([]byte, error)
-	AssignStudentToCareer(studentEmail, careerID string) error
 }
 
 type Handler struct {
@@ -91,6 +92,38 @@ func (h *Handler) GetStudentSubjects() {
 	}
 
 	h.wrapper.Wrap(http.MethodGet, "/students/{studentEmail}/careers/{careerID}/subjects", wrapH)
+}
+
+func (h *Handler) UpdateStudentSubject() {
+	wrapH := func(w http.ResponseWriter, r *http.Request) error {
+		params := mux.Vars(r)
+		studentEmail, exist := params["studentEmail"]
+		if !exist || studentEmail == "" {
+			return server.NewError("student email is required", http.StatusBadRequest)
+		}
+
+		careerID, exist := params["careerID"]
+		if !exist || careerID == "" {
+			return server.NewError("career id is required", http.StatusBadRequest)
+		}
+
+		subjectID, exist := params["subjectID"]
+		if !exist || subjectID == "" {
+			return server.NewError("subject id is required", http.StatusBadRequest)
+		}
+
+		if err := h.service.UpdateStudentSubject(studentEmail, careerID, subjectID); err != nil {
+			if errors.Is(err, service.ErrNotFound) {
+				return server.NewError(err.Error(), http.StatusNotFound)
+			}
+
+			return err
+		}
+
+		return server.RespondJSON(w, nil, http.StatusOK)
+	}
+
+	h.wrapper.Wrap(http.MethodPut, "/students/{studentEmail}/careers/{careerID}/subjects/{subjectID}", wrapH)
 }
 
 func (h *Handler) GetSubjectDetails() {
