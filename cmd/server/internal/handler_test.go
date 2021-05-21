@@ -1,8 +1,10 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -37,8 +39,8 @@ func (s *serviceMock) GetStudentSubjects(studentEmail, careerID string) ([]byte,
 	return args.Get(0).([]byte), args.Error(1)
 }
 
-func (s *serviceMock) UpdateStudentSubject(studentEmail, careerID, subjectID string) error {
-	args := s.Called(studentEmail, careerID, subjectID)
+func (s *serviceMock) UpdateStudentSubject(req service.UpdateStudentSubjectRequest) error {
+	args := s.Called(req)
 	return args.Error(0)
 }
 
@@ -364,13 +366,20 @@ func TestHandler_UpdateStudentSubject(t *testing.T) {
 	// Given
 	wrapper := wrapperMock{}
 	service_ := serviceMock{}
-	service_.On("UpdateStudentSubject", "test@gmail.com", "2", "1").Return(nil)
+
+	service_.On("UpdateStudentSubject", service.UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "2",
+		SubjectID:    "1",
+		Status:       "APROBADA",
+		Description:  "Aprobé!",
+	}).Return(nil)
 
 	h := NewHandler(&wrapper, &service_)
 	h.UpdateStudentSubject()
 
 	w := httptest.NewRecorder()
-	r, _ := http.NewRequest("PUT", "whocares", nil)
+	r, _ := http.NewRequest("PUT", "whocares", bytes.NewReader([]byte(`{"status":"APROBADA","description":"Aprobé!"}`)))
 	r = mux.SetURLVars(r, map[string]string{
 		"studentEmail": "test@gmail.com",
 		"careerID":     "2",
@@ -449,7 +458,7 @@ func TestHandler_UpdateStudentSubject_ParamsError(t *testing.T) {
 			h.UpdateStudentSubject()
 
 			w := httptest.NewRecorder()
-			r, _ := http.NewRequest("PUT", "whocares", nil)
+			r, _ := http.NewRequest("PUT", "whocares", bytes.NewReader([]byte(`{"status":"APROBADA","description":"Aprobé!"}`)))
 			r = mux.SetURLVars(r, tc.params)
 
 			// When
@@ -467,17 +476,114 @@ func TestHandler_UpdateStudentSubject_ParamsError(t *testing.T) {
 	}
 }
 
+func TestHandler_UpdateStudentSubject_BodyError(t *testing.T) {
+	// Given
+	wrapper := wrapperMock{}
+
+	h := NewHandler(&wrapper, nil)
+	h.UpdateStudentSubject()
+
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest("PUT", "whocares", bytes.NewReader([]byte(`{"status":1,"description":"Aprobé!"}`)))
+	r = mux.SetURLVars(r, map[string]string{
+		"studentEmail": "test@gmail.com",
+		"careerID":     "2",
+		"subjectID":    "1",
+	})
+
+	// When
+	err := wrapper.f(w, r)
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	hErr := err.(*server.Error)
+	require.Equal(t, 422, hErr.StatusCode)
+	require.Equal(t, "unprocessable_entity", hErr.Code)
+	require.Equal(t, "json: cannot unmarshal number into Go struct field .status of type string", hErr.Message)
+}
+
+func TestHandler_UpdateStudentSubject_BodyValidationError(t *testing.T) {
+	type expectedError struct {
+		StatusCode int
+		Code       string
+		Message    string
+	}
+
+	tt := []struct {
+		name          string
+		body          io.Reader
+		expectedError expectedError
+	}{
+		{
+			name: "status is missing",
+			body: bytes.NewReader([]byte(`{"status":"","description":"Aprobé!"}`)),
+			expectedError: expectedError{
+				StatusCode: 400,
+				Code:       "bad_request",
+				Message:    "Key: 'Status' Error:Field validation for 'Status' failed on the 'required' tag",
+			},
+		},
+		{
+			name: "status value is invalid",
+			body: bytes.NewReader([]byte(`{"status":"INVALID","description":"Aprobé!"}`)),
+			expectedError: expectedError{
+				StatusCode: 400,
+				Code:       "bad_request",
+				Message:    "Key: 'Status' Error:Field validation for 'Status' failed on the 'oneof' tag",
+			},
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// Given
+			wrapper := wrapperMock{}
+
+			h := NewHandler(&wrapper, nil)
+			h.UpdateStudentSubject()
+
+			w := httptest.NewRecorder()
+			r, _ := http.NewRequest("PUT", "whocares", tc.body)
+			r = mux.SetURLVars(r, map[string]string{
+				"studentEmail": "test@gmail.com",
+				"careerID":     "2",
+				"subjectID":    "1",
+			})
+
+			// When
+			err := wrapper.f(w, r)
+			if err == nil {
+				t.Fatal("test must fail")
+			}
+
+			// Then
+			hErr := err.(*server.Error)
+			require.Equal(t, tc.expectedError.StatusCode, hErr.StatusCode)
+			require.Equal(t, tc.expectedError.Code, hErr.Code)
+			require.Equal(t, tc.expectedError.Message, hErr.Message)
+		})
+	}
+}
+
 func TestHandler_UpdateStudentSubject_ServiceError(t *testing.T) {
 	// Given
 	wrapper := wrapperMock{}
 	service_ := serviceMock{}
-	service_.On("UpdateStudentSubject", "test@gmail.com", "2", "1").Return(errors.New("error"))
+	service_.On("UpdateStudentSubject", service.UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "2",
+		SubjectID:    "1",
+		Status:       "APROBADA",
+		Description:  "Aprobé!",
+	}).Return(errors.New("error"))
 
 	h := NewHandler(&wrapper, &service_)
 	h.UpdateStudentSubject()
 
 	w := httptest.NewRecorder()
-	r, _ := http.NewRequest("PUT", "whocares", nil)
+	r, _ := http.NewRequest("PUT", "whocares", bytes.NewReader([]byte(`{"status":"APROBADA","description":"Aprobé!"}`)))
 	r = mux.SetURLVars(r, map[string]string{
 		"studentEmail": "test@gmail.com",
 		"careerID":     "2",
@@ -498,13 +604,19 @@ func TestHandler_UpdateStudentSubject_ServiceNotFoundError(t *testing.T) {
 	// Given
 	wrapper := wrapperMock{}
 	service_ := serviceMock{}
-	service_.On("UpdateStudentSubject", "test@gmail.com", "2", "1").Return(service.ErrNotFound)
+	service_.On("UpdateStudentSubject", service.UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "2",
+		SubjectID:    "1",
+		Status:       "APROBADA",
+		Description:  "Aprobé!",
+	}).Return(service.ErrNotFound)
 
 	h := NewHandler(&wrapper, &service_)
 	h.UpdateStudentSubject()
 
 	w := httptest.NewRecorder()
-	r, _ := http.NewRequest("PUT", "whocares", nil)
+	r, _ := http.NewRequest("PUT", "whocares", bytes.NewReader([]byte(`{"status":"APROBADA","description":"Aprobé!"}`)))
 	r = mux.SetURLVars(r, map[string]string{
 		"studentEmail": "test@gmail.com",
 		"careerID":     "2",

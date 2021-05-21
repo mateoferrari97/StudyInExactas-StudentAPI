@@ -46,6 +46,7 @@ type Storage interface {
 	GetProfessorships(subjectID, careerID string) ([]storage.Professorship, error)
 	GetStudentCareerIDs(studentEmail string) ([]int, error)
 	AssignStudentToCareer(studentEmail, careerID string) error
+	UpdateStudentSubject(req storage.UpdateStudentSubjectRequest) error
 }
 
 type Service struct {
@@ -143,6 +144,37 @@ func (s *Service) GetStudentSubjects(studentEmail, careerID string) ([]byte, err
 	}
 
 	return response, nil
+}
+
+type UpdateStudentSubjectRequest struct {
+	StudentEmail string
+	CareerID     string
+	SubjectID    string
+	Status       string
+	Description  string
+}
+
+func (s *Service) UpdateStudentSubject(req UpdateStudentSubjectRequest) error {
+	storageReq := storage.UpdateStudentSubjectRequest{
+		StudentEmail: req.StudentEmail,
+		CareerID:     req.CareerID,
+		SubjectID:    req.SubjectID,
+		Status:       req.Status,
+	}
+
+	if req.Description != "" {
+		storageReq.Description = &req.Description
+	}
+
+	if err := s.storage.UpdateStudentSubject(storageReq); err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return fmt.Errorf("could not update subject: %w", ErrNotFound)
+		}
+
+		return fmt.Errorf("could not update subject: %v", err)
+	}
+
+	return nil
 }
 
 func hasCorrelative(correlativeID int) bool {

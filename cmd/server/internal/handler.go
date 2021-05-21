@@ -1,7 +1,9 @@
 package internal
 
 import (
+	"encoding/json"
 	"errors"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -17,7 +19,7 @@ type Wrapper interface {
 type Service interface {
 	AssignStudentToCareer(studentEmail, careerID string) error
 	GetStudentSubjects(studentEmail, careerID string) ([]byte, error)
-	UpdateStudentSubject(studentEmail, careerID, subjectID string) error
+	UpdateStudentSubject(req service.UpdateStudentSubjectRequest) error
 	GetSubjectDetails(subjectID, careerID string) ([]byte, error)
 	GetProfessorships(subjectID, careerID string) ([]byte, error)
 }
@@ -94,6 +96,8 @@ func (h *Handler) GetStudentSubjects() {
 	h.wrapper.Wrap(http.MethodGet, "/students/{studentEmail}/careers/{careerID}/subjects", wrapH)
 }
 
+var validate = validator.New()
+
 func (h *Handler) UpdateStudentSubject() {
 	wrapH := func(w http.ResponseWriter, r *http.Request) error {
 		params := mux.Vars(r)
@@ -112,7 +116,26 @@ func (h *Handler) UpdateStudentSubject() {
 			return server.NewError("subject id is required", http.StatusBadRequest)
 		}
 
-		if err := h.service.UpdateStudentSubject(studentEmail, careerID, subjectID); err != nil {
+		var subjectInformation struct {
+			Status      string `json:"status" validate:"required,oneof=PENDIENTE APROBADA"`
+			Description string `json:"description" validate:"omitempty,min=1,max=128"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&subjectInformation); err != nil {
+			return server.NewError(err.Error(), http.StatusUnprocessableEntity)
+		}
+
+		if err := validate.Struct(subjectInformation); err != nil {
+			return server.NewError(err.Error(), http.StatusBadRequest)
+		}
+
+		if err := h.service.UpdateStudentSubject(service.UpdateStudentSubjectRequest{
+			StudentEmail: studentEmail,
+			CareerID:     careerID,
+			SubjectID:    subjectID,
+			Status:       subjectInformation.Status,
+			Description:  subjectInformation.Description,
+		}); err != nil {
 			if errors.Is(err, service.ErrNotFound) {
 				return server.NewError(err.Error(), http.StatusNotFound)
 			}

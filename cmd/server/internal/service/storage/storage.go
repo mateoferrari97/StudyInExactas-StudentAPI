@@ -114,6 +114,18 @@ func (s *Storage) AssignStudentToCareer(studentEmail, careerID string) error {
 	return nil
 }
 
+func (s *Storage) UpdateStudentSubject(req UpdateStudentSubjectRequest) error {
+	return nil
+}
+
+type UpdateStudentSubjectRequest struct {
+	StudentEmail string
+	CareerID     string
+	SubjectID    string
+	Status       string
+	Description  *string
+}
+
 const getStudentSubjects = `SELECT cs.subject_id,
        s.name,
        cs.correlative_id,

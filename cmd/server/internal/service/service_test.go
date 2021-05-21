@@ -24,6 +24,11 @@ func (s *storageMock) AssignStudentToCareer(studentEmail, careerID string) error
 	return args.Error(0)
 }
 
+func (s *storageMock) UpdateStudentSubject(req storage.UpdateStudentSubjectRequest) error {
+	args := s.Called(req)
+	return args.Error(0)
+}
+
 func (s *storageMock) GetStudentSubjects(studentEmail, careerID string) ([]storage.StudentSubject, error) {
 	args := s.Called(studentEmail, careerID)
 	return args.Get(0).([]storage.StudentSubject), args.Error(1)
@@ -160,6 +165,129 @@ func TestService_AssignStudentToCareer_StorageAssignStudentToCareerNotFoundError
 
 	// Then
 	require.EqualError(t, err, "could not assign student [student_email: example@gmail.com] to career: service: resource not found")
+}
+
+func stringToPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+
+	return &s
+}
+
+func TestService_UpdateStudentSubject(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("UpdateStudentSubject", storage.UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "2",
+		Status:       "APROBADA",
+		Description:  stringToPtr("Aprobe!"),
+	}).Return(nil)
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "2",
+		Status:       "APROBADA",
+		Description:  "Aprobe!",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Nil(t, err)
+}
+
+func TestService_UpdateStudentSubject_StorageError(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("UpdateStudentSubject", storage.UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "2",
+		Status:       "APROBADA",
+		Description:  stringToPtr("Aprobe!"),
+	}).Return(errors.New("error"))
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "2",
+		Status:       "APROBADA",
+		Description:  "Aprobe!",
+	})
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not update subject: error")
+}
+
+func TestService_UpdateStudentSubject_StorageNotFoundError(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("UpdateStudentSubject", storage.UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "2",
+		Status:       "APROBADA",
+		Description:  stringToPtr("Aprobe!"),
+	}).Return(storage.ErrNotFound)
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "2",
+		Status:       "APROBADA",
+		Description:  "Aprobe!",
+	})
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not update subject: service: resource not found")
+}
+
+func TestService_UpdateStudentSubject_NilDescription(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("UpdateStudentSubject", storage.UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "2",
+		Status:       "APROBADA",
+	}).Return(nil)
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "test@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "2",
+		Status:       "APROBADA",
+		Description:  "",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Nil(t, err)
 }
 
 func TestService_GetStudentSubjects(t *testing.T) {
