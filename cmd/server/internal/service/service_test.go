@@ -235,8 +235,8 @@ func TestService_GetSubjectDetails(t *testing.T) {
 	storage_ := storageMock{}
 	storage_.On("GetSubjectDetails", "1", "2").Return(storage.SubjectDetails{
 		ID:     1,
-		Hours:  240,
-		Points: 8,
+		Hours:  nil,
+		Points: nil,
 		Name:   "Algebra",
 		Type:   "REQUIRED",
 		URI:    nil,
@@ -252,7 +252,7 @@ func TestService_GetSubjectDetails(t *testing.T) {
 	}
 
 	// Then
-	require.Equal(t, []byte(`{"id":1,"hours":240,"points":8,"name":"Algebra","type":"REQUIRED","uri":null,"meet":null}`), subject)
+	require.Equal(t, []byte(`{"id":1,"name":"Algebra","type":"REQUIRED","uri":null,"meet":null,"hours":null,"points":null}`), subject)
 }
 
 func TestService_GetSubjectDetails_StorageError(t *testing.T) {

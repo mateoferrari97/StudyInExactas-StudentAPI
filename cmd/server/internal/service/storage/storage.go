@@ -78,6 +78,10 @@ func (s *Storage) AssignStudentToCareer(studentEmail, careerID string) error {
 
 	var studentID int
 	if err := tx.Get(&studentID, getStudentID, studentEmail); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("could not find student: %w", ErrNotFound)
+		}
+
 		return err
 	}
 
@@ -87,6 +91,10 @@ func (s *Storage) AssignStudentToCareer(studentEmail, careerID string) error {
 
 	var careerCount int
 	if err := tx.Get(&careerCount, findCareerWithID, careerID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("could not find career: %w", ErrNotFound)
+		}
+
 		return err
 	}
 
@@ -172,19 +180,18 @@ func (s *Storage) GetStudentSubjects(studentEmail, careerID string) ([]StudentSu
 
 type SubjectDetails struct {
 	ID     int
-	Hours  int
-	Points int
 	Name   string
 	Type   string
 	URI    *string
 	Meet   *string
+	Hours  *int
+	Points *int
 }
 
 const getSubjectDetails = `SELECT s.id, s.name, s.uri, s.meet, cs.type, cs.hours, cs.points
 FROM career_subject cs
          INNER JOIN subject s ON cs.subject_id = s.id
-WHERE s.id = :subjectID
-  AND career_id = :careerID
+WHERE s.id = :subjectID AND career_id = :careerID
 LIMIT 1;`
 
 func (s *Storage) GetSubjectDetails(subjectID, careerID string) (SubjectDetails, error) {
@@ -198,13 +205,13 @@ func (s *Storage) GetSubjectDetails(subjectID, careerID string) (SubjectDetails,
 	params := map[string]interface{}{"subjectID": subjectID, "careerID": careerID}
 
 	var subjectDetails struct {
-		ID     int64   `db:"id"`
-		Hours  int64   `db:"hours"`
-		Points int64   `db:"points"`
+		ID     int     `db:"id"`
 		Name   string  `db:"name"`
 		Type   string  `db:"type"`
 		URI    *string `db:"uri"`
 		Meet   *string `db:"meet"`
+		Hours  *int    `db:"hours"`
+		Points *int    `db:"points"`
 	}
 
 	if err := stmt.Get(&subjectDetails, params); err != nil {
@@ -216,13 +223,13 @@ func (s *Storage) GetSubjectDetails(subjectID, careerID string) (SubjectDetails,
 	}
 
 	return SubjectDetails{
-		ID:     int(subjectDetails.ID),
-		Hours:  int(subjectDetails.Hours),
-		Points: int(subjectDetails.Points),
+		ID:     subjectDetails.ID,
 		Name:   subjectDetails.Name,
 		Type:   subjectDetails.Type,
 		URI:    subjectDetails.URI,
 		Meet:   subjectDetails.Meet,
+		Hours:  subjectDetails.Hours,
+		Points: subjectDetails.Points,
 	}, nil
 }
 

@@ -241,8 +241,7 @@ func TestStorage_AssignStudentToCareer_GetStudentIDNotFound(t *testing.T) {
 	q := `SELECT id FROM student WHERE email = ?;`
 	mock.ExpectQuery(q).
 		WithArgs("example@gmail.com").
-		WillReturnError(nil).
-		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(0))
+		WillReturnError(sql.ErrNoRows)
 
 	mock.ExpectCommit()
 
@@ -312,8 +311,7 @@ func TestStorage_AssignStudentToCareer_FindCareerWithIDNotFound(t *testing.T) {
 	q = `SELECT COUNT(1) FROM career WHERE id = ?;`
 	mock.ExpectQuery(q).
 		WithArgs("1").
-		WillReturnError(nil).
-		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(0))
+		WillReturnError(sql.ErrNoRows)
 
 	// When
 	err = storage_.AssignStudentToCareer("example@gmail.com", "1")
@@ -663,8 +661,8 @@ LIMIT 1;`
 
 	// Then
 	require.Equal(t, 1, subject.ID)
-	require.Equal(t, 240, subject.Hours)
-	require.Equal(t, 8, subject.Points)
+	require.Equal(t, 240, *subject.Hours)
+	require.Equal(t, 8, *subject.Points)
 	require.Equal(t, "Subject 1", subject.Name)
 	require.Equal(t, "REQUIRED", subject.Type)
 	require.Nil(t, subject.URI)

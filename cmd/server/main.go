@@ -29,6 +29,8 @@ func run() error {
 	sv := server.NewServer()
 	handler := internal.NewHandler(sv, svc)
 
+	// Create Student
+	// Update Student Subject
 	handler.AssignStudentToCareer()
 	handler.GetStudentSubjects()
 	handler.GetSubjectDetails()
@@ -49,7 +51,7 @@ func getPort() string {
 func newStorage() (*storage.Storage, error) {
 	source := os.Getenv("DATABASE_CONFIG")
 	if source == "" {
-		source = "root:root@tcp(localhost:3306)/university"
+		source = "root:root@tcp(localhost:3306)/study_in_exactas"
 	}
 
 	db, err := sqlx.Open("mysql", source)

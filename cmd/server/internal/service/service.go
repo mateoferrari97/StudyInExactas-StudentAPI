@@ -152,12 +152,12 @@ func hasCorrelative(correlativeID int) bool {
 func (s *Service) GetSubjectDetails(subjectID, careerID string) ([]byte, error) {
 	type subjectDetailsResponse struct {
 		ID     int     `json:"id"`
-		Hours  int     `json:"hours"`
-		Points int     `json:"points"`
 		Name   string  `json:"name"`
 		Type   string  `json:"type"`
 		URI    *string `json:"uri"`
 		Meet   *string `json:"meet"`
+		Hours  *int    `json:"hours"`
+		Points *int    `json:"points"`
 	}
 
 	subjectDetails, err := s.storage.GetSubjectDetails(subjectID, careerID)
