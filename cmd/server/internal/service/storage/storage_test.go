@@ -3,12 +3,119 @@ package storage
 import (
 	"database/sql"
 	"errors"
+	"github.com/go-sql-driver/mysql"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
+
+func TestStorage_CreateStudent(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `INSERT INTO student (name, email) VALUES (?, ?)`
+	mock.ExpectPrepare(q).WillReturnError(nil)
+	mock.ExpectExec(q).
+		WithArgs("example", "example@gmail.com").
+		WillReturnError(nil).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	// When
+	err = storage_.CreateStudent("example", "example@gmail.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Nil(t, err)
+}
+
+func TestStorage_CreateStudent_PrepareStmtError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `INSERT INTO student (name, email) VALUES (?, ?)`
+	mock.ExpectPrepare(q).WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.CreateStudent("example", "example@gmail.com")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_CreateStudent_ExecuteStmtError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `INSERT INTO student (name, email) VALUES (?, ?)`
+	mock.ExpectPrepare(q).WillReturnError(nil)
+	mock.ExpectExec(q).
+		WithArgs("example", "example@gmail.com").
+		WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.CreateStudent("example", "example@gmail.com")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_CreateStudent_DuplicateEntryError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	q := `INSERT INTO student (name, email) VALUES (?, ?)`
+	mock.ExpectPrepare(q).WillReturnError(nil)
+	mock.ExpectExec(q).
+		WithArgs("example", "example@gmail.com").
+		WillReturnError(&mysql.MySQLError{Number: 1062})
+
+	// When
+	err = storage_.CreateStudent("example", "example@gmail.com")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "storage: resource already exist")
+}
 
 func TestStorage_GetStudentCareerIDs(t *testing.T) {
 	// Given

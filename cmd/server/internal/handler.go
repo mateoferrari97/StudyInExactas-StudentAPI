@@ -17,6 +17,7 @@ type Wrapper interface {
 }
 
 type Service interface {
+	CreateStudent(name, studentEmail string) error
 	AssignStudentToCareer(studentEmail, careerID string) error
 	GetStudentSubjects(studentEmail, careerID string) ([]byte, error)
 	UpdateStudentSubject(req service.UpdateStudentSubjectRequest) error
@@ -34,6 +35,35 @@ func NewHandler(wrapper Wrapper, service Service) *Handler {
 		wrapper: wrapper,
 		service: service,
 	}
+}
+
+func (h *Handler) CreateStudent() {
+	wrapH := func(w http.ResponseWriter, r *http.Request) error {
+		var studentInformation struct {
+			Name         string `json:"name" validate:"required"`
+			StudentEmail string `json:"student_email" validate:"required"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&studentInformation); err != nil {
+			return server.NewError(err.Error(), http.StatusUnprocessableEntity)
+		}
+
+		if err := validate.Struct(studentInformation); err != nil {
+			return server.NewError(err.Error(), http.StatusBadRequest)
+		}
+
+		if err := h.service.CreateStudent(studentInformation.Name, studentInformation.StudentEmail); err != nil {
+			if errors.Is(err, service.ErrStudentAlreadyExist) {
+				return server.NewError(err.Error(), http.StatusConflict)
+			}
+
+			return err
+		}
+
+		return server.RespondJSON(w, nil, http.StatusOK)
+	}
+
+	h.wrapper.Wrap(http.MethodPost, "/students", wrapH)
 }
 
 func (h *Handler) AssignStudentToCareer() {

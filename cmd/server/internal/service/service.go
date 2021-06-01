@@ -16,6 +16,7 @@ var (
 	ErrNotFound              = errors.New("service: resource not found")
 	ErrCareerAlreadyAssigned = errors.New("service: career already assigned")
 	ErrMaxCareerReached      = errors.New("service: student already has maximum careers assigned")
+	ErrStudentAlreadyExist   = errors.New("service: student already exist")
 )
 
 var (
@@ -41,6 +42,7 @@ var (
 )
 
 type Storage interface {
+	CreateStudent(name, studentEmail string) error
 	GetStudentSubjects(studentEmail, careerID string) ([]storage.StudentSubject, error)
 	GetSubjectDetails(subjectID, careerID string) (storage.SubjectDetails, error)
 	GetProfessorships(subjectID, careerID string) ([]storage.Professorship, error)
@@ -55,6 +57,18 @@ type Service struct {
 
 func NewService(storage Storage) *Service {
 	return &Service{storage: storage}
+}
+
+func (s *Service) CreateStudent(name, studentEmail string) error {
+	if err := s.storage.CreateStudent(name, studentEmail); err != nil {
+		if errors.Is(err, storage.ErrResourceAlreadyExist) {
+			return ErrStudentAlreadyExist
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 func (s *Service) AssignStudentToCareer(studentEmail, careerID string) error {

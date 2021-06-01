@@ -4,11 +4,15 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/go-sql-driver/mysql"
 
 	"github.com/jmoiron/sqlx"
 )
 
-var ErrNotFound = errors.New("storage: resource not found")
+var (
+	ErrNotFound             = errors.New("storage: resource not found")
+	ErrResourceAlreadyExist = errors.New("storage: resource already exist")
+)
 
 type Storage struct {
 	db *sqlx.DB
@@ -25,6 +29,36 @@ type StudentSubject struct {
 	Name          string
 	Type          string
 	Description   *string
+}
+
+const createStudent = `INSERT INTO student (name, email) VALUES (:name, :email)`
+
+func (s *Storage) CreateStudent(name, studentEmail string) error {
+	stmt, err := s.db.PrepareNamed(createStudent)
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	params := map[string]interface{}{"name": name, "email": studentEmail}
+
+	_, err = stmt.Exec(params)
+	if err != nil {
+		me, ok := err.(*mysql.MySQLError)
+		if !ok {
+			return err
+		}
+
+		// Duplicate entry
+		if me.Number == 1062 {
+			return ErrResourceAlreadyExist
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 const getStudentCareerIDs = `SELECT career_id FROM student_career sc

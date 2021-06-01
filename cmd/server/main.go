@@ -29,7 +29,7 @@ func run() error {
 	sv := server.NewServer()
 	handler := internal.NewHandler(sv, svc)
 
-	// Create Student
+	handler.CreateStudent()
 	handler.AssignStudentToCareer()
 	handler.GetStudentSubjects()
 	handler.UpdateStudentSubject()

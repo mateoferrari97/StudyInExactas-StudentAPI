@@ -29,6 +29,10 @@ type serviceMock struct {
 	mock.Mock
 }
 
+func (s *serviceMock) CreateStudent(name, studentEmail string) error {
+	return s.Called(name, studentEmail).Error(0)
+}
+
 func (s *serviceMock) AssignStudentToCareer(studentEmail, careerID string) error {
 	args := s.Called(studentEmail, careerID)
 	return args.Error(0)
@@ -54,6 +58,158 @@ func (s *serviceMock) GetProfessorships(subjectID, careerID string) ([]byte, err
 	return args.Get(0).([]byte), args.Error(1)
 }
 
+func TestHandler_CreateStudent(t *testing.T) {
+	// Given
+	wrapper := wrapperMock{}
+	service_ := serviceMock{}
+	service_.On("CreateStudent", "example", "example@gmail.com").Return(nil)
+
+	h := NewHandler(&wrapper, &service_)
+	h.CreateStudent()
+
+	b := bytes.NewReader([]byte(`{
+		"name": "example",
+		"student_email": "example@gmail.com"
+	}`))
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest("POST", "whocares", b)
+
+	// When
+	err := wrapper.f(w, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestHandler_CreateStudent_BodyValidationError(t *testing.T) {
+	tt := []struct {
+		name          string
+		b             io.Reader
+		expectedError string
+	}{
+		{
+			name: "name is empty",
+			b: bytes.NewReader([]byte(`{
+				"name": "",
+				"student_email": "example@gmail.com"
+			}`)),
+			expectedError: "400 bad_request: Key: 'Name' Error:Field validation for 'Name' failed on the 'required' tag",
+		},
+		{
+			name: "student email is empty",
+			b: bytes.NewReader([]byte(`{
+				"name": "example",
+				"student_email": ""
+			}`)),
+			expectedError: "400 bad_request: Key: 'StudentEmail' Error:Field validation for 'StudentEmail' failed on the 'required' tag",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			// Given
+			wrapper := wrapperMock{}
+			service_ := serviceMock{}
+
+			h := NewHandler(&wrapper, &service_)
+			h.CreateStudent()
+
+			w := httptest.NewRecorder()
+			r, _ := http.NewRequest("POST", "whocares", tc.b)
+
+			// When
+			err := wrapper.f(w, r)
+			if err == nil {
+				t.Fatal("test must fail")
+			}
+
+			// Then
+			require.EqualError(t, err, tc.expectedError)
+		})
+	}
+}
+
+func TestHandler_CreateStudent_BodyError(t *testing.T) {
+	// Given
+	wrapper := wrapperMock{}
+	service_ := serviceMock{}
+
+	h := NewHandler(&wrapper, &service_)
+	h.CreateStudent()
+
+	b := bytes.NewReader([]byte(`{
+			"name": 1,
+			"student_email": "example@gmail.com"
+		}`))
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest("POST", "whocares", b)
+
+	// When
+	err := wrapper.f(w, r)
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "422 unprocessable_entity: json: cannot unmarshal number into Go struct field .name of type string")
+}
+
+func TestHandler_CreateStudent_StudentAlreadyExist(t *testing.T) {
+	// Given
+	wrapper := wrapperMock{}
+	service_ := serviceMock{}
+	service_.On("CreateStudent", "example", "example@gmail.com").Return(service.ErrStudentAlreadyExist)
+
+	h := NewHandler(&wrapper, &service_)
+	h.CreateStudent()
+
+	b := bytes.NewReader([]byte(`{
+		"name": "example",
+		"student_email": "example@gmail.com"
+	}`))
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest("POST", "whocares", b)
+
+	// When
+	err := wrapper.f(w, r)
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "409 conflict: service: student already exist")
+}
+
+func TestHandler_CreateStudent_ServiceError(t *testing.T) {
+
+	// Given
+	wrapper := wrapperMock{}
+	service_ := serviceMock{}
+	service_.On("CreateStudent", "example", "example@gmail.com").Return(errors.New("error"))
+
+	h := NewHandler(&wrapper, &service_)
+	h.CreateStudent()
+
+	b := bytes.NewReader([]byte(`{
+				"name": "example",
+				"student_email": "example@gmail.com"
+			}`))
+	w := httptest.NewRecorder()
+	r, _ := http.NewRequest("POST", "whocares", b)
+
+	// When
+	err := wrapper.f(w, r)
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
 func TestHandler_AssignStudentToCareer(t *testing.T) {
 	// Given
 	wrapper := wrapperMock{}
@@ -64,7 +220,7 @@ func TestHandler_AssignStudentToCareer(t *testing.T) {
 	h.AssignStudentToCareer()
 
 	w := httptest.NewRecorder()
-	r, _ := http.NewRequest("GET", "whocares", nil)
+	r, _ := http.NewRequest("POST", "whocares", nil)
 	r = mux.SetURLVars(r, map[string]string{
 		"studentEmail": "example@gmail.com",
 		"careerID":     "1",
@@ -127,7 +283,7 @@ func TestHandler_AssignStudentToCareer_ParamsError(t *testing.T) {
 			h.AssignStudentToCareer()
 
 			w := httptest.NewRecorder()
-			r, _ := http.NewRequest("GET", "whocares", nil)
+			r, _ := http.NewRequest("POST", "whocares", nil)
 			r = mux.SetURLVars(r, tc.params)
 
 			// When
@@ -184,7 +340,7 @@ func TestHandler_AssignStudentToCareer_ServiceError(t *testing.T) {
 			h.AssignStudentToCareer()
 
 			w := httptest.NewRecorder()
-			r, _ := http.NewRequest("GET", "whocares", nil)
+			r, _ := http.NewRequest("POST", "whocares", nil)
 			r = mux.SetURLVars(r, map[string]string{
 				"studentEmail": "example@gmail.com",
 				"careerID":     "1",

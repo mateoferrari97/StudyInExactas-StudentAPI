@@ -14,6 +14,10 @@ type storageMock struct {
 	mock.Mock
 }
 
+func (s *storageMock) CreateStudent(name, studentEmail string) error {
+	return s.Called(name, studentEmail).Error(0)
+}
+
 func (s *storageMock) GetStudentCareerIDs(studentEmail string) ([]int, error) {
 	args := s.Called(studentEmail)
 	return args.Get(0).([]int), args.Error(1)
@@ -42,6 +46,57 @@ func (s *storageMock) GetSubjectDetails(subjectID, careerID string) (storage.Sub
 func (s *storageMock) GetProfessorships(subjectID, careerID string) ([]storage.Professorship, error) {
 	args := s.Called(subjectID, careerID)
 	return args.Get(0).([]storage.Professorship), args.Error(1)
+}
+
+func TestService_CreateStudent(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("CreateStudent", "example", "example@gmail.com").Return(nil)
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.CreateStudent("example", "example@gmail.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Nil(t, err)
+}
+
+func TestService_CreateStudent_StorageError(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("CreateStudent", "example", "example@gmail.com").Return(errors.New("error"))
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.CreateStudent("example", "example@gmail.com")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestService_CreateStudent_StudentAlreadyExistError(t *testing.T) {
+	// Given
+	storage_ := storageMock{}
+	storage_.On("CreateStudent", "example", "example@gmail.com").Return(storage.ErrResourceAlreadyExist)
+
+	s := NewService(&storage_)
+
+	// When
+	err := s.CreateStudent("example", "example@gmail.com")
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "service: student already exist")
 }
 
 func TestService_AssignStudentToCareer(t *testing.T) {
