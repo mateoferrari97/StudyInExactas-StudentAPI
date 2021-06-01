@@ -259,7 +259,7 @@ func TestService_UpdateStudentSubject_StorageNotFoundError(t *testing.T) {
 	}
 
 	// Then
-	require.EqualError(t, err, "could not update subject: service: resource not found")
+	require.EqualError(t, err, "could not update subject: service: resource not found: storage: resource not found")
 }
 
 func TestService_UpdateStudentSubject_NilDescription(t *testing.T) {

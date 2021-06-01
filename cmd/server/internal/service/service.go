@@ -10,7 +10,7 @@ import (
 	"github.com/mateoferrari97/AnitiMonono-StudentAPI/cmd/server/internal/service/storage"
 )
 
-const maxCareersPerStudent = 3
+const maxCareersPerStudent = 2
 
 var (
 	ErrNotFound              = errors.New("service: resource not found")
@@ -168,7 +168,7 @@ func (s *Service) UpdateStudentSubject(req UpdateStudentSubjectRequest) error {
 
 	if err := s.storage.UpdateStudentSubject(storageReq); err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			return fmt.Errorf("could not update subject: %w", ErrNotFound)
+			return fmt.Errorf("could not update subject: %w: %v", ErrNotFound, err)
 		}
 
 		return fmt.Errorf("could not update subject: %v", err)

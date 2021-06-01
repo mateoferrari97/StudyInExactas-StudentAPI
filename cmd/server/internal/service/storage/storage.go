@@ -115,6 +115,98 @@ func (s *Storage) AssignStudentToCareer(studentEmail, careerID string) error {
 }
 
 func (s *Storage) UpdateStudentSubject(req UpdateStudentSubjectRequest) error {
+	tx, err := s.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("could not begin tx: %v", err)
+	}
+
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	studentID, err := s.getStudentByEmail(tx, req.StudentEmail)
+	if err != nil {
+		return err
+	}
+
+	if err := s.checkStudentAssignedToCareer(tx, studentID, req.CareerID); err != nil {
+		return err
+	}
+
+	careerSubjectID, err := s.getCareerSubjectByIDs(tx, req.CareerID, req.SubjectID)
+	if err != nil {
+		return err
+	}
+
+	if err := s.updateStudentSubject(tx, studentID, careerSubjectID, req.Status, req.Description); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("could not commit tx: %v", err)
+	}
+
+	return nil
+}
+
+const getStudentByEmail = `SELECT id FROM student WHERE email = ?;`
+
+func (s *Storage) getStudentByEmail(tx *sqlx.Tx, studentEmail string) (int, error) {
+	var id int
+	if err := tx.Get(&id, getStudentByEmail, studentEmail); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("could not find student: %w", ErrNotFound)
+		}
+
+		return 0, err
+	}
+
+	return id, nil
+}
+
+const checkStudentAssignedToCareer = `SELECT COUNT(1) FROM student_career WHERE student_id = ? AND career_id = ?`
+
+func (s *Storage) checkStudentAssignedToCareer(tx *sqlx.Tx, studentID int, careerID string) error {
+	var results int
+	if err := tx.Get(&results, checkStudentAssignedToCareer, studentID, careerID); err != nil {
+		return err
+	}
+
+	if results == 0 {
+		return fmt.Errorf("could not find student assigned to career: %w", ErrNotFound)
+	}
+
+	return nil
+}
+
+const getCareerSubjectByIDs = `SELECT id FROM career_subject WHERE career_id = ? AND subject_id = ?`
+
+func (s *Storage) getCareerSubjectByIDs(tx *sqlx.Tx, careerID, subjectID string) (int, error) {
+	var id int
+	if err := tx.Get(&id, getCareerSubjectByIDs, careerID, subjectID); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, fmt.Errorf("could not find career and subject: %w", ErrNotFound)
+		}
+
+		return 0, err
+	}
+
+	return id, nil
+}
+
+const updateStudentSubject = `INSERT INTO student_career_subject
+    (student_id, career_subject_id, status, description)
+VALUES (?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE status      = ?,
+                        description = ?;`
+
+func (s *Storage) updateStudentSubject(tx *sqlx.Tx, studentID, careerSubjectID int, status string, description *string) error {
+	if _, err := tx.Exec(updateStudentSubject, studentID, careerSubjectID, status, description, status, description); err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -406,6 +406,454 @@ func TestStorage_AssignStudentToCareer_CommitTxError(t *testing.T) {
 	require.EqualError(t, err, "could not commit tx: error")
 }
 
+func TestStorage_UpdateStudentSubject(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM student_career WHERE student_id = ? AND career_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs(1, "1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(1))
+
+	q = `SELECT id FROM career_subject WHERE career_id = ? AND subject_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs("1", "1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(2))
+
+	q = `INSERT INTO student_career_subject (student_id, career_subject_id, status, description) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?, description = ?;`
+	mock.ExpectExec(q).
+		WithArgs(1, 2, "PENDIENTE", nil, "PENDIENTE", nil).
+		WillReturnError(nil).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	mock.ExpectCommit()
+
+	// When
+	err = storage_.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "example@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "1",
+		Status:       "PENDIENTE",
+		Description:  nil,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Then
+	require.Nil(t, err)
+}
+
+func TestStorage_UpdateStudentSubject_BeginTxError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin().WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "example@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "1",
+		Status:       "PENDIENTE",
+		Description:  nil,
+	})
+
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not begin tx: error")
+}
+
+func TestStorage_UpdateStudentSubject_GetStudentEmailError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "example@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "1",
+		Status:       "PENDIENTE",
+		Description:  nil,
+	})
+
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_UpdateStudentSubject_GetStudentEmailNotFoundError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(sql.ErrNoRows)
+
+	// When
+	err = storage_.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "example@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "1",
+		Status:       "PENDIENTE",
+		Description:  nil,
+	})
+
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not find student: storage: resource not found")
+}
+
+func TestStorage_UpdateStudentSubject_CheckStudentAssignedToCareerError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM student_career WHERE student_id = ? AND career_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs(1, "1").
+		WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "example@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "1",
+		Status:       "PENDIENTE",
+		Description:  nil,
+	})
+
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_UpdateStudentSubject_CheckStudentAssignedToCareerNotFoundError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM student_career WHERE student_id = ? AND career_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs(1, "1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(0))
+
+	// When
+	err = storage_.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "example@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "1",
+		Status:       "PENDIENTE",
+		Description:  nil,
+	})
+
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not find student assigned to career: storage: resource not found")
+}
+
+func TestStorage_UpdateStudentSubject_GetCareerSubjectByIDsError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM student_career WHERE student_id = ? AND career_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs(1, "1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(1))
+
+	q = `SELECT id FROM career_subject WHERE career_id = ? AND subject_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs("1", "1").
+		WillReturnError(errors.New("error"))
+
+	mock.ExpectCommit()
+
+	// When
+	err = storage_.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "example@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "1",
+		Status:       "PENDIENTE",
+		Description:  nil,
+	})
+
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_UpdateStudentSubject_GetCareerSubjectByIDsNotFoundError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM student_career WHERE student_id = ? AND career_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs(1, "1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(1))
+
+	q = `SELECT id FROM career_subject WHERE career_id = ? AND subject_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs("1", "1").
+		WillReturnError(sql.ErrNoRows)
+
+	mock.ExpectCommit()
+
+	// When
+	err = storage_.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "example@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "1",
+		Status:       "PENDIENTE",
+		Description:  nil,
+	})
+
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not find career and subject: storage: resource not found")
+}
+
+func TestStorage_UpdateStudentSubject_UpdateStudentSubjectError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM student_career WHERE student_id = ? AND career_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs(1, "1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(1))
+
+	q = `SELECT id FROM career_subject WHERE career_id = ? AND subject_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs("1", "1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(2))
+
+	q = `INSERT INTO student_career_subject (student_id, career_subject_id, status, description) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?, description = ?;`
+	mock.ExpectExec(q).
+		WithArgs(1, 2, "PENDIENTE", nil, "PENDIENTE", nil).
+		WillReturnError(errors.New("error"))
+
+	mock.ExpectCommit()
+
+	// When
+	err = storage_.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "example@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "1",
+		Status:       "PENDIENTE",
+		Description:  nil,
+	})
+
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "error")
+}
+
+func TestStorage_UpdateStudentSubject_CommitTxError(t *testing.T) {
+	// Given
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	if err != nil {
+		t.Fatalf("could not start sql mock: %v", err)
+	}
+
+	defer db.Close()
+
+	storage_ := NewStorage(sqlx.NewDb(db, ""))
+
+	mock.ExpectBegin()
+
+	q := `SELECT id FROM student WHERE email = ?;`
+	mock.ExpectQuery(q).
+		WithArgs("example@gmail.com").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
+
+	q = `SELECT COUNT(1) FROM student_career WHERE student_id = ? AND career_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs(1, "1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"COUNT(1)"}).AddRow(1))
+
+	q = `SELECT id FROM career_subject WHERE career_id = ? AND subject_id = ?`
+	mock.ExpectQuery(q).
+		WithArgs("1", "1").
+		WillReturnError(nil).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(2))
+
+	q = `INSERT INTO student_career_subject (student_id, career_subject_id, status, description) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?, description = ?;`
+	mock.ExpectExec(q).
+		WithArgs(1, 2, "PENDIENTE", nil, "PENDIENTE", nil).
+		WillReturnError(nil).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	mock.ExpectCommit().WillReturnError(errors.New("error"))
+
+	// When
+	err = storage_.UpdateStudentSubject(UpdateStudentSubjectRequest{
+		StudentEmail: "example@gmail.com",
+		CareerID:     "1",
+		SubjectID:    "1",
+		Status:       "PENDIENTE",
+		Description:  nil,
+	})
+
+	if err == nil {
+		t.Fatal("test must fail")
+	}
+
+	// Then
+	require.EqualError(t, err, "could not commit tx: error")
+}
+
 func TestStorage_GetStudentSubjects(t *testing.T) {
 	// Given
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
